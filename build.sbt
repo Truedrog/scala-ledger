@@ -17,6 +17,8 @@ lazy val root = (project in file(".")).settings(
     "com.olvind.tui" %% "tui" % "0.0.5",
 
     "com.github.j-mie6" %% "parsley" % "4.2.9",
-    "com.github.j-mie6" %% "parsley-cats" % "1.2.0"
-  )
+    "com.github.j-mie6" %% "parsley-cats" % "1.2.0",
+    "org.typelevel" %% "kittens" % "3.0.0"
+  ),
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
 )

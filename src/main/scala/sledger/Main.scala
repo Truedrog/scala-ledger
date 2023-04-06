@@ -1,6 +1,7 @@
 package sledger
 
 import cats.effect.{IO, IOApp}
+import sledger.read.JournalReader
 
 import scala.io.Source
 
