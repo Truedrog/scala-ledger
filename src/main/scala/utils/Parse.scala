@@ -1,5 +1,7 @@
 package utils
-
+import cats._
+import cats.data._
+import cats.syntax.all._
 import parsley.Parsley
 import parsley.character.{satisfy, stringOfMany, stringOfSome}
 
@@ -23,5 +25,6 @@ object Parse {
 
   val skipNonNewlineSpaces: Parsley[Unit] = takeWhileP(isNonNewlineSpace).void
   val skipNonNewlineSpaces1: Parsley[Unit] = takeWhileP1(isNonNewlineSpace).void
+  val skipNonNewlineSpacesb: Parsley[Boolean] = (skipNonNewlineSpaces1 #> true) <|> Parsley.pure(false) 
   val spacenonewline: Parsley[Char] = satisfy(isNonNewlineSpace)
 }
