@@ -9,26 +9,28 @@ import parsley.debug._
 import parsley.errors.combinator._
 import parsley.position.pos
 
-import java.time.LocalDate
 import sledger.data.amount._
 import sledger.data.posting._
 import sledger.data.transaction.{Transaction, txnTieKnot}
-import sledger.read.Common.{accountnamep, amountp, balanceassertionp, datep, descriptionp, emptyorcommentlinep, multilinecommentp}
+import sledger.read.common.{accountnamep, amountp, codep, datep, descriptionp, emptyorcommentlinep, followingcommentp, multilinecommentp, statusp, transactioncommentp}
 import utils.Parse.{skipNonNewlineSpaces, skipNonNewlineSpaces1, spacenonewline}
 
-
 object JournalReader {
-  val postingp: Parsley[Posting]  = {
-   (skipNonNewlineSpaces1,
+  val postingp: Parsley[Posting] = {
+    (skipNonNewlineSpaces1,
       skipNonNewlineSpaces,
-      accountnamep, 
+      accountnamep,
       skipNonNewlineSpaces,
-      option(amountp), 
-      skipNonNewlineSpaces, 
-      option(balanceassertionp),
-      skipNonNewlineSpaces).zipped {(_, _, accountname, _, amount, _, massertion, _) => {
-        posting.copy(account = accountname, amount = amount.fold(missingmixedamt)(a => mixedAmount(a)), balanceAssertion = massertion )
-      }
+      option(amountp),
+      skipNonNewlineSpaces,
+//      option(balanceassertionp),
+      skipNonNewlineSpaces,
+      followingcommentp
+    ).zipped { (_, _, accountname, _, amount, _, _, comment) => 
+      posting.copy(account = accountname, 
+        amount = amount.fold(missingmixedamt)(a => mixedAmount(a)), 
+//        balanceAssertion = massertion,
+        comment = comment)
     }
   }
   
@@ -42,16 +44,21 @@ object JournalReader {
       datep.label("transaction"),
       lookAhead((spacenonewline <|> newline).label("whitespace or newline")).void,
       descriptionp,
+      transactioncommentp,
+      statusp,
+      codep,
       postingsp,
       pos,
-    ).zipped { (startPos, date, _, desc, postings, endPos) => {
+    ).zipped { (startPos, date, _, desc, comment, status, code, postings, endPos) => {
       val sourcePos = (startPos, endPos)
-      txnTieKnot(Transaction(0, "", 
+      txnTieKnot(Transaction(0, 
+        "", 
         sourcepos = sourcePos, 
         date = date, date2 = None, 
-        status = ???, code = "", 
+        status = status, 
+        code = code, 
         description = desc, 
-        comment = "", 
+        comment = comment, 
         postings = postings))
     }}
   }

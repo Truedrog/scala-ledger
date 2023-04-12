@@ -13,7 +13,7 @@ object Main extends IOApp.Simple {
   val bracketRead: IO[String] =
     sourceIO.bracket(src => readLines(src))(src => closeFile(src))
   def run: IO[Unit] = {
-    IO.pure(())
+    
     val res = for {
       f <- bracketRead
       _ = println(f)

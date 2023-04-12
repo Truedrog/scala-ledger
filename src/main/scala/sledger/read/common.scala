@@ -3,10 +3,11 @@ package sledger.read
 import cats._
 import cats.syntax.all._
 import cats.derived._
+
 import parsley.Parsley
 import parsley.Parsley.{attempt, join, lookAhead, notFollowedBy}
 import parsley.character.{char, digit, endOfLine, isSpace, newline, satisfy, string}
-import parsley.combinator.{between, eof, many, manyUntil, option, optional, optionalAs}
+import parsley.combinator.{attemptChoice, between, choice, eof, many, manyUntil, option, optional, optionalAs}
 import parsley.position.{offset, pos}
 import parsley.implicits.zipped._
 import parsley.errors.combinator._
@@ -15,13 +16,12 @@ import parsley.debug._
 import java.time.LocalDate
 import scala.util.Try
 import scala.Function.const
-
-import sledger.Types.{BalanceAssertion, isDecimalMark}
+import sledger.Types.{BalanceAssertion, Cleared, Pending, Status, Unmarked, isDecimalMark}
 import sledger.data.amount._
-import sledger.data.Dates._
-import utils.Parse.{isLineCommentStart, isNewline, skipNonNewlineSpaces, skipNonNewlineSpaces1, skipNonNewlineSpacesb, spacenonewline, takeWhileP, takeWhileP1}
+import sledger.data.dates._
+import utils.Parse.{eolof, isLineCommentStart, isNewline, skipNonNewlineSpaces, skipNonNewlineSpaces1, skipNonNewlineSpacesb, spacenonewline, takeWhileP, takeWhileP1}
 
-object Common {
+object common {
 
   private def readDecimal(s: String): Int = {
     s.foldLeft(0) { (a, c) =>
@@ -65,9 +65,42 @@ object Common {
   }
 
   val isDigitSeparatorChar: Char => Boolean = (c: Char) => isDecimalMark(c) || c == ' '
-
+  
+  val followingcommentp_ = (contentp: Parsley[String]) => {
+    val headerp = char(';') *> skipNonNewlineSpaces
+    (skipNonNewlineSpaces,
+      attempt(headerp) *> contentp.map(a => a :: Nil) <|> Parsley.pure(List[String]()),
+      eolof,
+      many(attempt(skipNonNewlineSpaces1 *> headerp) *> contentp <* eolof))
+      .zipped { (_, sameLine, _, nextLines) =>
+        val sameLine_ = if(sameLine.isEmpty && nextLines.nonEmpty) {
+          List()
+        } else sameLine
+        (sameLine_ ++ nextLines).foldLeft(List.empty[String]) { (acc, t) =>
+          t :: """\n""" :: acc
+        }.mkString.strip()
+      }
+  }
+  val followingcommentp = followingcommentp_(takeWhileP(a => a != '\n'))
+  val transactioncommentp = followingcommentp
   val noncommenttextp: Parsley[String] = takeWhileP { c => !isSameLineCommentStart(c) || isNewline(c) }
   val descriptionp: Parsley[String] = noncommenttextp.label("description")
+  val statusp: Parsley[Status] = {
+    attemptChoice(skipNonNewlineSpaces *> char('*') #> Cleared,
+      skipNonNewlineSpaces *> char('!') #> Pending,
+      Parsley.pure(()) #> Unmarked
+    ).label("cleared status")
+  }
+  
+  val codep: Parsley[String] = {
+    optionalAs(attempt({
+      (skipNonNewlineSpaces1,
+        char('('),
+        takeWhileP(c => c != ')' && c != '\n'),
+        char(')')).zipped { (_, _, code, _) => code }
+    }), "").label("transaction code")
+  }
+  
   val signp: Parsley[BigDecimal => BigDecimal] = {
     val sign: BigDecimal => BigDecimal = (n: BigDecimal) => 0 - n
     val idD: BigDecimal => BigDecimal = identity[BigDecimal]
@@ -211,8 +244,8 @@ object Common {
     }
 
     def decimalGroup(raw: RawNumber): DigitGroup = raw match {
-      case NoSeparators(_, mDecimals) => mDecimals._2F.getOrElse(Monoid.empty)
-      case WithSeparators(_, _, mDecimals) => mDecimals._2F.getOrElse(Monoid.empty)
+      case NoSeparators(_, mDecimals) => mDecimals._2F.getOrElse(Monoid[DigitGroup].empty)
+      case WithSeparators(_, _, mDecimals) => mDecimals._2F.getOrElse(Monoid[DigitGroup].empty)
     }
 
     def digitGroup(raw: RawNumber): DigitGroup = raw match {
@@ -284,15 +317,15 @@ object Common {
     simpleamountp <* spaces
   }
 
-  val balanceassertionp: Parsley[BalanceAssertion] = {
-    (pos,
-      char('='),
-      option(attempt(char('='))).map(_.isDefined),
-      option(attempt(char('*'))).map(_.isDefined),
-      skipNonNewlineSpaces,
-      amountnobasisp)
-      .zipped { (sourcepos, _, isTotal, isInclusive, _, amount) =>
-        BalanceAssertion(amount, isTotal, isInclusive, sourcepos)
-      }
-  }
+//  val balanceassertionp: Parsley[BalanceAssertion] = { //todo readd later
+//    (pos,
+//      char('='),
+//      option(attempt(char('='))).map(_.isDefined),
+//      option(attempt(char('*'))).map(_.isDefined),
+//      skipNonNewlineSpaces,
+//      amountnobasisp)
+//      .zipped { (sourcepos, _, isTotal, isInclusive, _, amount) =>
+//        BalanceAssertion(amount, isTotal, isInclusive, sourcepos)
+//      }
+//  }
 }

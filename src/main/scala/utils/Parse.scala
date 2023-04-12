@@ -3,7 +3,9 @@ import cats._
 import cats.data._
 import cats.syntax.all._
 import parsley.Parsley
-import parsley.character.{satisfy, stringOfMany, stringOfSome}
+import parsley.character.{satisfy, stringOfMany, stringOfSome, newline}
+import parsley.combinator.{eof}
+
 
 object Parse {
   def takeWhileP(p: Char => Boolean): Parsley[String] = stringOfMany(satisfy(p))
@@ -27,4 +29,5 @@ object Parse {
   val skipNonNewlineSpaces1: Parsley[Unit] = takeWhileP1(isNonNewlineSpace).void
   val skipNonNewlineSpacesb: Parsley[Boolean] = (skipNonNewlineSpaces1 #> true) <|> Parsley.pure(false) 
   val spacenonewline: Parsley[Char] = satisfy(isNonNewlineSpace)
+  val eolof = newline.void <|> eof
 }

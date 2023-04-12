@@ -207,11 +207,11 @@ object amount {
   }
 
   def amountKey(amount: Amount): MixedAmountKeyNoPrice = MixedAmountKeyNoPrice(amount.commodity) 
-  def mixed(amounts: List[Amount]) = amounts.foldLeft(nullmixedamout)(maAddAmount)
+  def mixed(amounts: List[Amount]): MixedAmount = amounts.foldLeft(nullmixedamout)(maAddAmount)
   def nullmixedamout: MixedAmount = MixedAmount(mixed = Map.empty)
   def missingmixedamt: MixedAmount = mixedAmount(missingamt)
   def mixedAmount(amount: Amount): MixedAmount = MixedAmount(Map(amountKey(amount) -> amount))
-  def maAddAmount (ma: MixedAmount, a: Amount) = MixedAmount(ma.mixed.updated(amountKey(a), a)) 
+  def maAddAmount(ma: MixedAmount, a: Amount): MixedAmount = MixedAmount(ma.mixed.updated(amountKey(a), a)) 
  
   def mapMixedAmountUnsafe(f: Amount => Amount, mixedAmount: MixedAmount): MixedAmount = {
     MixedAmount(mixedAmount.mixed.map{ case (ma, a) => ma->f(a) })

@@ -14,9 +14,10 @@ object posting {
                       account: AccountName,
                       amount: MixedAmount,
                       comment: String,
-                      balanceAssertion: Option[BalanceAssertion],
+//                      balanceAssertion: Option[BalanceAssertion],
                       transaction: Option[Transaction]
                     )
+  def nullsourcepos = ((1, 1), (2, 1))
   def nullposting: Posting = {
     Posting(date1 = None,
       date2 = None, 
@@ -24,7 +25,7 @@ object posting {
       account="",
       amount=nullmixedamout,
       comment = "",
-      balanceAssertion = None,
+//      balanceAssertion = None,
       transaction = None)
   }
   def posting: Posting = nullposting

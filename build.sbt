@@ -1,6 +1,6 @@
 ThisBuild / organization := "com.example"
 ThisBuild / scalaVersion := "2.13.5"
-scalacOptions ++= Seq("-Ymacro-annotations")
+scalacOptions ++= Seq("-Ymacro-annotations", "-deprecation", "-feature")
 
 lazy val root = (project in file(".")).settings(
   name := "scala-ledger",

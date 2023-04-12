@@ -19,7 +19,10 @@ package object Types {
   }
 
   
-  case class BalanceAssertion(amount: Amount, total: Boolean, inclusive: Boolean, positon: (Int, Int))
+  case class BalanceAssertion(amount: Amount,
+                              total: Boolean,
+                              inclusive: Boolean,
+                              positon: (Int, Int))
   
   sealed trait Status
   case object Unmarked extends Status
