@@ -192,18 +192,17 @@ object amount {
       go(a.mixed.toList, b.mixed.toList)
     }
 
-//    implicit val showMixedAmount: Show[MixedAmount] = derived.semiauto.show
+    implicit val showMixedAmount: Show[MixedAmount] = deriving
     implicit val eqMixedAmount: Eq[MixedAmount] = (x: MixedAmount, y: MixedAmount) => {
       maCompare(x, y) === Comparison.EqualTo
     }
     implicit val orderMixedAmount: Order[MixedAmount] = (x: MixedAmount, y: MixedAmount) => maCompare(x, y).toInt
-  }
-  
-  implicit val semigroupMixedAmount: Semigroup[MixedAmount] = (x: MixedAmount, y: MixedAmount) => maPlus(x, y)
-  implicit val monoidMixedAmount: Monoid[MixedAmount] = new Monoid[MixedAmount] {
-    override def empty: MixedAmount = nullmixedamout
+    implicit val semigroupMixedAmount: Semigroup[MixedAmount] = (x: MixedAmount, y: MixedAmount) => maPlus(x, y)
+    implicit val monoidMixedAmount: Monoid[MixedAmount] = new Monoid[MixedAmount] {
+      override def empty: MixedAmount = nullmixedamout
 
-    override def combine(x: MixedAmount, y: MixedAmount): MixedAmount = maPlus(x, y)
+      override def combine(x: MixedAmount, y: MixedAmount): MixedAmount = maPlus(x, y)
+    }
   }
 
   def amountKey(amount: Amount): MixedAmountKeyNoPrice = MixedAmountKeyNoPrice(amount.commodity) 
