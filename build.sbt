@@ -1,6 +1,11 @@
 ThisBuild / organization := "com.example"
 ThisBuild / scalaVersion := "2.13.5"
-scalacOptions ++= Seq("-Ymacro-annotations", "-deprecation", "-feature")
+scalacOptions ++= Seq(
+  "-Ymacro-annotations", 
+  "-deprecation", 
+  "-feature",   
+  "-encoding", "UTF-8"
+)
 
 lazy val root = (project in file(".")).settings(
   name := "scala-ledger",
@@ -16,7 +21,7 @@ lazy val root = (project in file(".")).settings(
     compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
     "org.typelevel" %% "munit-cats-effect-3" % "1.0.7" % Test,
     "com.olvind.tui" %% "tui" % "0.0.5",
-
+    "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0",
     "com.github.j-mie6" %% "parsley" % "4.2.9",
     "com.github.j-mie6" %% "parsley-cats" % "1.2.0",
     "org.typelevel" %% "kittens" % "3.0.0",
