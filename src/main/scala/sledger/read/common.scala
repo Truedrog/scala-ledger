@@ -231,10 +231,11 @@ object common {
   val fromRawNumber: RawNumber => Either[String, (BigDecimal, Byte, Option[Char], Option[DigitGroupStyle])] = (raw: RawNumber) => {
     def toQuantity(preDecimalGrp: DigitGroup, posDecimalGrp: DigitGroup): Either[String, (BigDecimal, Byte)] = {
       val digitGrpNum = (preDecimalGrp |+| posDecimalGrp).digitGroupNumber
-      val precision = posDecimalGrp.digitGroupLength - 0
-      if (precision < 0 || precision < 256) { //todo fix
-
-        Right(BigDecimal(digitGrpNum), precision.toByte)
+      val precision = posDecimalGrp.digitGroupLength.toInt - 0 // fixme get exponent
+      if (precision < 0) {
+        Right(BigDecimal(0, digitGrpNum*10^(-precision)), 0)
+      } else if (precision < 255) {
+        Right(BigDecimal(precision.toByte, digitGrpNum), 0)
       } else Left("invalid number: numbers with more than 255 decimal places are currently not supported")
     }
 

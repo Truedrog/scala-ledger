@@ -1,7 +1,6 @@
 package sledger.text
 
 import cats._
-import cats.data._
 import cats.syntax.all._
 import io.github.akiomik.seaw.implicits._
 
@@ -23,6 +22,7 @@ object WideString {
     }
   }
   
-  def wideBuilderToString(wb: WideBuilder) = wb.builder.result()
-  def wideBuilderFromString(t: String) = WideBuilder(new StringBuilder(t), t.width)
+  def wideBuilderToString(wb: WideBuilder): String = wb.builder.result()
+
+  def wideBuilderFromString(t: String): WideBuilder = WideBuilder(new StringBuilder(t), t.width)
 }

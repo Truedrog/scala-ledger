@@ -1,4 +1,5 @@
 package sledger.text.tabular
+
 import scala.collection.decorators._
 import cats.{Group => _, _}
 import cats.data._

@@ -4,14 +4,35 @@ import cats._
 import cats.data._
 import cats.syntax.all._
 import cats.derived
-import cats.kernel.Comparison
 import io.estatico.newtype.macros.newtype
+import sledger.text.WideString.{WideBuilder, wideBuilderFromString}
+
+import scala.math.BigDecimal.RoundingMode
 
 object amount {
   def isNonsimpleCommodityChar: Char => Boolean = (c: Char) => {
     val otherChars = "-+.@*;\t\n \"{}="
     otherChars.exists(e => e == c) || c.isDigit
   }
+  
+  def quoteCommoditySymbolIfNeeded(s: String): String = {
+    if (s.exists(isNonsimpleCommodityChar)) "\"" + s + "\"" else s
+  }
+
+  case class AmountDisplayOpts(
+                                displayPrice: Boolean = true,
+//                                displayColour: Boolean = false, //todo color?
+                                displayZeroCommodity: Boolean = false,
+                                displayThousandsSep: Boolean = true,
+                                displayOneLine: Boolean = false,
+                                displayMinWidth: Option[Int] = Some(0),
+                                displayMaxWidth: Option[Int] = None,
+                                displayOrder: Option[List[CommoditySymbol]] = None
+                              )
+
+  val noColour: AmountDisplayOpts = AmountDisplayOpts(displayPrice = false) // default
+  val noPrice: AmountDisplayOpts = noColour.copy(displayPrice = false)
+  val oneLine: AmountDisplayOpts = noColour.copy(displayOneLine = true, displayPrice = true)
 
   sealed trait AmountPrecision
 
@@ -70,6 +91,10 @@ object amount {
     }
   }
 
+  sealed trait AmountPrice
+  case class UnitPrice(a: Amount) extends AmountPrice
+  case class TotalPrice(a: Amount )extends AmountPrice
+  
   case class AmountStyle(side: Side,
                          commodityspaced: Boolean,
                          precision: AmountPrecision,
@@ -99,8 +124,13 @@ object amount {
     implicit val showCommodity: Show[Commodity] = derived.semiauto.show
   }
 
-  case class Amount(commodity: CommoditySymbol, quantity: BigDecimal, style: AmountStyle)
-
+  case class Amount(
+                     commodity: CommoditySymbol, // commodity symbol, or special value "AUTO"
+                     quantity: BigDecimal, // numeric quantity, or zero in case of "AUTO"
+                     style: AmountStyle,
+//                     price: Option[AmountPrice] //-- the (fixed, transaction-specific) price for this amount, if any
+  )
+  
   object Amount {
 
     implicit val showAmount: Show[Amount] = derived.semiauto.show
@@ -134,19 +164,20 @@ object amount {
     }
   }
 
-  def nullamount: Amount = Amount(commodity = "", quantity = 0, style = amountstyle)
+  def nullamount: Amount = Amount(commodity = "", quantity = 0, style = amountstyle
+//    , price = None
+  )
 
   def missingamt: Amount = nullamount.copy(commodity = "AUTO")
 
-  def transformAmount(f: BigDecimal => BigDecimal, amount: Amount): Amount = {
-    amount.copy(quantity = f(amount.quantity))
-  }
-
-  def similarAmountsOp(op: (BigDecimal, BigDecimal) => BigDecimal, amount1: Amount, amount2: Amount): Amount = {
+  def transformAmount(f: BigDecimal => BigDecimal, amount: Amount): Amount = amount.copy(quantity = f(amount.quantity))
+  
+  def isNegativeAmount(amount: Amount): Boolean = amount.quantity < 0
+  
+  def similarAmountsOp(op: (BigDecimal, BigDecimal) => BigDecimal, amount1: Amount, amount2: Amount): Amount = 
     nullamount.copy(commodity = amount2.commodity,
       quantity = op(amount1.quantity, amount2.quantity),
       style = amount2.style.copy(precision = Order.max(amount1.style.precision, amount2.style.precision)))
-  }
 
   sealed trait MixedAmountKey
 
@@ -160,9 +191,8 @@ object amount {
       case MixedAmountKeyNoPrice(commoditySymbol) => commoditySymbol
     }
 
-    implicit val orderMixedAmountKey: Order[MixedAmountKey] = (x: MixedAmountKey, y: MixedAmountKey) => {
+    implicit val orderMixedAmountKey: Order[MixedAmountKey] = (x: MixedAmountKey, y: MixedAmountKey) =>
       Order.compare(commodity(x), commodity(y))
-    }
   }
 
   @newtype
@@ -212,13 +242,11 @@ object amount {
   def mixedAmount(amount: Amount): MixedAmount = MixedAmount(Map(amountKey(amount) -> amount))
   def maAddAmount(ma: MixedAmount, a: Amount): MixedAmount = MixedAmount(ma.mixed.updated(amountKey(a), a)) 
  
-  def mapMixedAmountUnsafe(f: Amount => Amount, mixedAmount: MixedAmount): MixedAmount = {
+  def mapMixedAmountUnsafe(f: Amount => Amount, mixedAmount: MixedAmount): MixedAmount =
     MixedAmount(mixedAmount.mixed.map{ case (ma, a) => ma->f(a) })
-  }
-  def transformMixedAmount(f: BigDecimal => BigDecimal, mixedAmount: MixedAmount): MixedAmount = {
-    val f1 = transformAmount(f, _)
-    mapMixedAmountUnsafe(f1, mixedAmount)
-  }
+    
+  def transformMixedAmount(f: BigDecimal => BigDecimal, mixedAmount: MixedAmount): MixedAmount =
+    mapMixedAmountUnsafe(transformAmount(f, _), mixedAmount)
 
   def maPlus(x: MixedAmount, y: MixedAmount): MixedAmount = {
     import Amount.amountNum._
@@ -227,15 +255,99 @@ object amount {
     })
   }
   
-  def maNegate(x: MixedAmount): MixedAmount = {
+  def maNegate(x: MixedAmount): MixedAmount =
     transformMixedAmount(Numeric[BigDecimal].negate, x)
-  }
   
-  def maMinus(x: MixedAmount, y: MixedAmount): MixedAmount = {
+  def maMinus(x: MixedAmount, y: MixedAmount): MixedAmount =
     maNegate(maPlus(x, y))
-  }
   
-  def maSum(mas: List[MixedAmount]): MixedAmount = {
+  def maSum(mas: List[MixedAmount]): MixedAmount =
     mas.foldLeft(nullmixedamout)(maPlus)
+  
+  def amountRoundedQuantity(amount:Amount): BigDecimal = {
+    amount.style.precision match {
+      case Precision(p) => amount.quantity.setScale(p, RoundingMode.HALF_EVEN)
+      case NaturalPrecision => amount.quantity
+    }
+  }
+
+  def withPrecision(amount: Amount, precision: AmountPrecision): Amount =
+    amount.copy(style = amount.style.copy(precision = precision))
+  
+  def amountLooksZero(amount: Amount): Boolean =
+    BigDecimal(0) == amount.quantity
+  
+  def showAmountB(showOpts: AmountDisplayOpts, amount: Amount): WideBuilder = {
+//    val color = if (showOpts.displayColour && isNegativeAmount(amount)) else 
+   
+    val showC = (l: WideBuilder, r: WideBuilder) => {
+      if (showOpts.displayOrder.isDefined) Monoid[WideBuilder].empty else l |+| r
+    }
+    val (quantity, c) = {
+      
+      val q =
+        showamountquantity(if (showOpts.displayThousandsSep) amount else amount.copy(style = amount.style.copy(digitgroups = None)))
+      if (amountLooksZero(amount) && showOpts.displayZeroCommodity) {
+        (WideBuilder(new StringBuilder("0"), 1), "")
+      } else {
+        (q, quoteCommoditySymbolIfNeeded(amount.commodity))
+      }
+      
+    }
+    
+    val space = if(c.nonEmpty && amount.style.commodityspaced) WideBuilder(new StringBuilder(" "),1) else Monoid[WideBuilder].empty
+    val price = Monoid[WideBuilder].empty
+    
+    if(amount.commodity == "AUTO") {
+      Monoid[WideBuilder].empty
+    } else {
+      amount.style.side match {
+        case L => showC(wideBuilderFromString(c), space) |+| quantity |+| price
+        case R => quantity |+| showC(space, wideBuilderFromString(c)) |+| price
+      }
+    }
+  }
+
+  def applyDigitGroupStyle(mdigitGroupStyle: Option[DigitGroupStyle], intLen: Int, strPart: String): WideBuilder = {
+    mdigitGroupStyle match {
+      case None => WideBuilder(new StringBuilder(strPart), intLen)
+      case Some(DigitGroupStyle(_, Nil)) => WideBuilder(new StringBuilder(strPart), intLen)
+      case Some(DigitGroupStyle(c, s :: s1)) =>
+        def addSep(nel: NonEmptyList[Byte], l1: Int, s1: String): WideBuilder = {
+          val l2 = l1 - nel.head.toInt
+          val gs2 = NonEmptyList.fromList(nel.tail).getOrElse(NonEmptyList.of(nel.head))
+          val (rest, part) = s1.splitAt(l2)
+
+          if (l2 > 0) {
+            addSep(gs2, l2, rest) |+| WideBuilder(new StringBuilder(c).append(new StringBuilder(part)), nel.head + 1)
+          } else {
+            WideBuilder(new StringBuilder(s1), l1)
+          }
+        }
+
+        addSep(NonEmptyList(s, s1), intLen, strPart)
+    }
+  }
+
+  def showamountquantity(amount: Amount): WideBuilder = {
+    val rounded = amountRoundedQuantity(amount)
+    val (e, n) = (rounded.scale, rounded.underlying()
+      .unscaledValue()
+      .intValue())
+    val strN = n.abs.toString
+    val len = strN.length
+    val intLen = 1.max(len - e)
+    val dec = amount.style.decimalpoint.getOrElse(".").toString
+    val padded = "0" * (e + 1 - len) + strN
+    val (intPart, fracPart) = padded.splitAt(intLen)
+    val intB = applyDigitGroupStyle(amount.style.digitgroups, intLen = intLen, if (e == 0) strN else intPart)
+    val signB = if (n < 0) WideBuilder(new StringBuilder("-"), 1) else Monoid[WideBuilder].empty
+    val fracB = if (e > 0) {
+      WideBuilder(new StringBuilder(dec).append(new StringBuilder(fracPart)), e + 1)
+    } else {
+      Monoid[WideBuilder].empty
+    }
+    
+    signB |+| intB |+| fracB
   }
 }
