@@ -1,5 +1,5 @@
 ThisBuild / organization := "com.example"
-ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / scalaVersion := "2.13.10"
 scalacOptions ++= Seq(
   "-Ymacro-annotations", 
   "-deprecation", 
@@ -25,7 +25,9 @@ lazy val root = (project in file(".")).settings(
     "com.github.j-mie6" %% "parsley" % "4.2.9",
     "com.github.j-mie6" %% "parsley-cats" % "1.2.0",
     "org.typelevel" %% "kittens" % "3.0.0",
-    "io.estatico" %% "newtype" % "0.4.4"
+    "io.estatico" %% "newtype" % "0.4.4",
+    "io.github.akiomik" %% "seaw" % "0.1.0",
+    "org.apache.commons" % "commons-text" % "1.10.0"
   ),
   addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
 )

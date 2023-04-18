@@ -1,74 +1,18 @@
 package sledger.text.tabular
-import cats._
+import scala.collection.decorators._
+import cats.{Group => _, _}
 import cats.data._
 import cats.syntax.all._
 
-object Ascii {
-  implicit val stringBuilderMonoid: Monoid[StringBuilder] = new Monoid[StringBuilder] {
-    override def empty: StringBuilder = new StringBuilder("")
+import sledger.text.WideString._
+import sledger.text.tabular.Tabular._
 
-    override def combine(x: StringBuilder, y: StringBuilder): StringBuilder = {
-      new StringBuilder().append(x).append(y)
-    }
-  }
+object Ascii {
+  
   case class TableOpts(prettyTable: Boolean = false, tableBorders: Boolean = true, borderSpaces: Boolean = true)
   object TableOpts {
     implicit val TableOpts: Show[TableOpts] = Show.fromToString
   }
-  sealed trait Properties
-  case object NoLine extends Properties
-  case object SingleLine extends Properties
-  case object DoubleLine extends Properties
-  
-  sealed trait TableHeader[+A]
-  final case class Header[A](a: A) extends TableHeader[A]
-  final case class Group[A](properties: Properties, headers: List[TableHeader[A]]) extends TableHeader[A]
-  object TableHeader {
-    implicit val functorTH: Functor[TableHeader] = new Functor[TableHeader] {
-      override def map[A, B](fa: TableHeader[A])(f: A => B): TableHeader[B] = fa match {
-        case Header(a) => Header(f(a))
-        case Group(properties, headers) => Group(properties, headers.map(h => map(h)(f)))
-      }
-    }  
-  }
-
-  def headerContents[A](h: TableHeader[A]):List[A] = {
-    h match {
-      case Header(a) => List(a)
-      case Group(_, headers) => headers.flatMap(headerContents)
-    }
-  }
-  
-  def zipHeader[A](e: Int, ss: List[Int], h: TableHeader[A]): TableHeader[(Int, A)] = {
-    def runner(header: TableHeader[A]): State[List[Int], TableHeader[(Int, A)]] = {
-      State { initial => {
-        header match {
-          case Header(a) => initial match {
-            case s :: ss => (ss, Header(s, a))
-            case Nil => (initial, Header(e, a))
-          }
-          case Group(properties, headers) =>
-            headers.traverse(runner).map(a => Group(properties, a)).run(initial).value
-        }
-      }
-      }
-    }
-
-    runner(h).runA(ss).value
-  }
-  
-  def flattenHeader[A](h: TableHeader[A]): List[Either[Properties, A]] = {
-    h match {
-      case Header(a) => List(Right(a))
-      case Group(properties, headers) =>
-        val hs: List[List[Either[Properties, A]]] = headers.map(flattenHeader[A])
-        val pxs = List(Left(properties))
-        Foldable[List].intercalate(hs, pxs)
-    }
-  }
-  
-  final case class Table[A](rh: TableHeader[A], ch: TableHeader[A], a: List[List[A]])
-  def empty: Table[Nothing] = Table(Group(NoLine, List.empty), Group(NoLine, List.empty), List.empty)
 
   sealed trait Align
   case object TopRight extends Align
@@ -79,44 +23,47 @@ object Ascii {
     implicit val TableOpts: Show[Align] = Show.fromToString
   }
   
-  case class Cell(align: Align, ls: List[StringBuilder])
+  case class Cell(align: Align, ls: List[WideBuilder])
   
   def emptyCell: Cell = Cell(TopRight, List.empty)
   
-  def textCell(a: Align, x: String): Cell = Cell(a, 
-    if (x.isEmpty) List(new StringBuilder("")) else {
-      x.split("\\\\n").map(new StringBuilder(_)).toList
+  def textCell(a: Align, x: String): Cell = {
+    val texts = if (x.isEmpty) List("") else {
+      x.split("\\\\n").toList
     }
-  )
+    Cell(a,
+      texts.map(wideBuilderFromString)
+    )
+  }
   
-  def textCells(a: Align, txts: List[String]): Cell = Cell(a, txts.map(new StringBuilder(_)))
+  def textCells(a: Align, txts: List[String]): Cell = Cell(a, txts.map(wideBuilderFromString))
   
-  def cellWidth(cell: Cell) = cell.ls.map(x => x.length).maxOption.fold(0)(a => a)
+  def cellWidth(cell: Cell): Int = cell.ls.map(x => x.width).maxOption.fold(0)(a => a)
   
-  def verticalBar(pretty: Boolean) = if (pretty) "│" else "|"
+  def verticalBar(pretty: Boolean): String = if (pretty) "│" else "|"
   
-  def leftBar(pretty: Boolean, spaces: Boolean) = {
+  def leftBar(pretty: Boolean, spaces: Boolean): StringBuilder = {
     (pretty, spaces) match {
       case (_, true)  =>  new StringBuilder(verticalBar(pretty)).append(" ")
       case (_, false) =>  new StringBuilder(verticalBar(pretty))
     }
   }
   
-  def rightBar(pretty: Boolean, spaces: Boolean) = {
+  def rightBar(pretty: Boolean, spaces: Boolean): StringBuilder = {
     (pretty, spaces) match {
       case (_, true)  =>  new StringBuilder(verticalBar(pretty)).insert(0, " ")
       case (_, false) =>  new StringBuilder(verticalBar(pretty))
     }
   }
   
-  def midBar(pretty: Boolean, spaces: Boolean) = {
+  def midBar(pretty: Boolean, spaces: Boolean): StringBuilder = {
     (pretty, spaces) match {
       case (_, true)  => new StringBuilder(verticalBar(pretty)).insert(0, " ").append(" ")
       case (_, false) => new StringBuilder(verticalBar(pretty))
     }
   }
   
-  def doubleMidBar(pretty: Boolean, spaces: Boolean) = {
+  def doubleMidBar(pretty: Boolean, spaces: Boolean): StringBuilder = {
     (pretty, spaces) match {
       case (_, true) => if(pretty) new StringBuilder(" ║ ") else new StringBuilder(" || ")
       case (_, false) => if(pretty) new StringBuilder("║") else new StringBuilder("||")
@@ -132,32 +79,148 @@ object Ascii {
   case object HL extends HPos
   case object HM extends HPos
   case object HR extends HPos
-  
-  def renderColums[A](tableOps: TableOpts, maxWidth: List[Int], header: TableHeader[Cell]): StringBuilder = {
-    def padRow(cell: Cell) = cell match {
-      case Cell(TopLeft,     ls) => Cell(TopLeft, ???)
-      case Cell(TopRight,    ls) => ???
-      case Cell(BottomLeft,  ls) => ???
-      case Cell(BottomRight, ls) => ???
-    }
-    def nLines = headerContents(header).map(c => c.ls.length).maxOption.fold(0)(a => a)
-    ???
+
+  def renderTable[R, C, A](
+                      tableOps: TableOpts,
+                      fr: R => Cell, // Rendering function for row headers
+                      fc: C => Cell, // Rendering function for column headers
+                      f: A => Cell, //  Function determining the string and width of a cell
+                      table: Table[R, C, A]
+                    ): String = {
+    renderTableB(tableOps, fr, fc, f, table).result()
+  }
+
+  def renderTableB[R, C, A](
+                       tableOps: TableOpts,
+                       fr: R => Cell,
+                       fc: C => Cell,
+                       f: A => Cell,
+                       table: Table[R, C, A]
+                     ):StringBuilder = {
+    val fRListA: ((R, List[A])) => (Cell, List[Cell]) = { case (r, la) => fr(r) -> la.map(f) }
+    val fList: List[C] => List[Cell] = la => la.map(fc)
+    renderTableByRowsB[R,C,A](tableOps, fList, fRListA, table)
   }
   
-  def renderHLine[A](vpos: VPos, 
+  def renderTableByRowsB[R,C,A](
+                             tableOps: TableOpts,
+                             fc: List[C] => List[Cell],              // Rendering function for column headers
+                             f: ((R, List[A])) => (Cell, List[Cell]),// Rendering function for row and row header
+                             table: Table[R, C, A]   
+                           ): StringBuilder = {
+    val rows = headerContents(table.rh).zip(table.cells).map(f).unzip
+    val rowHeaders = zipHeader(emptyCell, rows._1, table.rh).map(a => a._1)
+    val colHeaders = zipHeader(emptyCell, fc(headerContents(table.ch)), table.ch).map(a => a._1)
+    val cellContents = rows._2
+
+    // ch2 and cell2 include the row and column labels
+    val ch2 = Group(DoubleLine, List(Header(emptyCell), colHeaders))
+    val cells2 = headerContents(ch2) :: headerContents(rowHeaders).lazyZip(cellContents).map((a, b) => a :: b)
+
+    // maximum width for each column
+    val sizes = cells2.transpose.map(a => a.map(cellWidth).maxOption.getOrElse(0))
+    def renderR(cs: List[Cell],h: Cell): StringBuilder = {
+      renderColumns(tableOps, sizes, Group(DoubleLine, List(Header(h), zipHeader(emptyCell, cs, colHeaders)._1F)))
+    }
+    
+    def renderRs[AA <: StringBuilder](h: TableHeader[AA]): List[StringBuilder] = {
+      h match {
+        case Header(a) => List[StringBuilder](a)
+        case Group(properties, headers) =>
+          val sep = renderHLine(vpos = VM, borders = tableOps.borderSpaces, pretty = tableOps.prettyTable,
+            w = sizes,
+            header = ch2,
+            prop = properties)
+          headers.map(renderRs[AA]).intercalate(sep)
+      }
+    }
+    
+    // borders and bars
+    def addBorders(xs: List[StringBuilder]): List[StringBuilder] =
+      if (tableOps.borderSpaces) {
+        bar(VT, SingleLine) :: xs |+| List(bar(VB, SingleLine))
+      } else xs
+
+    def bar(VPos: VPos, properties: Properties): StringBuilder =
+      Monoid.combineAll(renderHLine(vpos = VPos,
+        borders = tableOps.borderSpaces,
+        pretty = tableOps.prettyTable,
+        w = sizes,
+        header = ch2,
+        prop = properties)) 
+        
+    val unlinesB = (builders: List[StringBuilder]) =>
+      Foldable[List].foldMap(builders) {a => a |+| new StringBuilder("""\n""")}
+
+    unlinesB
+      .compose(addBorders)
+      .apply(List(renderColumns(tableOps, sizes, ch2), bar(VM, DoubleLine)) |+| renderRs(zipHeader(List.empty, cellContents, rowHeaders)
+        .map { case (a, b) => renderR(a, b) }))
+  }
+  
+  def renderRow(tableOpts: TableOpts, header:TableHeader[Cell]): String = renderRowSB(tableOpts, header).result()
+  
+  def renderRowSB(tableOpts: TableOpts, header: TableHeader[Cell]): StringBuilder = {
+    val is = headerContents(header).map(cellWidth)
+    renderColumns(tableOpts, is, header)
+  }
+  
+  def renderColumns(tableOps: TableOpts, maxWidth: List[Int], header: TableHeader[Cell]): StringBuilder = {
+    def padcell(widthAndCell: (Int, Cell)):List[StringBuilder] = widthAndCell match {
+      case (w, Cell(TopLeft, ls))     => ls.map(x => Monoid[StringBuilder].combine(x.builder, new StringBuilder(" ".repeat(w - x.width))))
+      case (w, Cell(BottomLeft, ls))  => ls.map(x => Monoid[StringBuilder].combine(x.builder, new StringBuilder(" ".repeat(w - x.width))))
+      case (w, Cell(TopRight, ls))    => ls.map(x => Monoid[StringBuilder].combine(new StringBuilder(" ".repeat(w - x.width)),x.builder))
+      case (w, Cell(BottomRight, ls)) => ls.map(x => Monoid[StringBuilder].combine(new StringBuilder(" ".repeat(w - x.width)),x.builder))
+    }
+    
+    def padRow(cell: Cell): Cell = cell match {
+      case Cell(TopLeft,     ls) => Cell(TopLeft, ls ++ List.fill(nLines - ls.length)(Monoid[WideBuilder].empty))
+      case Cell(TopRight,    ls) => Cell(TopRight, ls ++ List.fill(nLines - ls.length)(Monoid[WideBuilder].empty))
+      case Cell(BottomLeft,  ls) => Cell(BottomLeft, List.fill(nLines - ls.length)(Monoid[WideBuilder].empty) ++ ls)
+      case Cell(BottomRight, ls) => Cell(BottomRight, List.fill(nLines - ls.length)(Monoid[WideBuilder].empty) ++ ls)
+    }
+    
+    def nLines: Int = headerContents(header).map(c => c.ls.length).maxOption.fold(0)(a => a)
+
+    def hsep(props: Properties): List[StringBuilder] = props match {
+      case NoLine => List.fill(nLines)(if (tableOps.borderSpaces) new StringBuilder("  ") else new StringBuilder(""))
+      case SingleLine => List.fill(nLines)(midBar(tableOps.prettyTable, tableOps.borderSpaces))
+      case DoubleLine => List.fill(nLines)(doubleMidBar(tableOps.prettyTable, tableOps.borderSpaces))
+    }
+
+    def addBorders(xs: StringBuilder): StringBuilder = {
+      if (tableOps.borderSpaces) {
+        leftBar(tableOps.prettyTable, tableOps.borderSpaces) |+| xs |+| rightBar(tableOps.prettyTable, tableOps.borderSpaces)
+      } else if (tableOps.borderSpaces) {
+        new StringBuilder(" ") |+| xs |+| new StringBuilder(" ")
+      } else {
+        xs
+      }
+    }
+
+    Monoid[StringBuilder]
+      .combineAll(
+        flattenHeader(zipHeader(0, maxWidth, header.map(padRow)))
+          .map(_.fold(hsep, padcell))
+          .transpose
+          .map(x => addBorders(Monoid[StringBuilder].combineAll(x)))
+          .intersperse(new StringBuilder("""\n"""))
+      )
+  }
+  
+  def renderHLine[A](vpos: VPos,
                      borders: Boolean, //show outer borders
                      pretty: Boolean,
                      prop: Properties,
                      w: List[Int], //width specs
-                     hdr: TableHeader[A]): List[StringBuilder] = {
-    
+                     header: TableHeader[A]): List[StringBuilder] = {
     def addBorders(xs: StringBuilder): StringBuilder = {
       if(borders) edge(HL).append(xs).append(edge(HR)) else xs
     }
 
     def edge(hpos: HPos): StringBuilder = boxchar(vpos, hpos, SingleLine, prop)(pretty)
     def coreLine = {
-      val xs = flattenHeader(zipHeader(0, w, hdr))
+      val xs = flattenHeader(zipHeader(0, w, header))
       Foldable[List].foldMap(xs) {
         case Left(p) => vsep(p)
         case Right((i, _)) => new StringBuilder(Monoid.combineN(sep.result(), i))
@@ -199,14 +262,14 @@ object Ascii {
     lineart(u, d, l, r)(pretty)
   }
 
-  def pick(str1: String, str2: String)(b: Boolean) = {
+  def pick(str1: String, str2: String)(b: Boolean): StringBuilder = {
     (str1, str2, b) match {
       case (x, _, true) => new StringBuilder(x)
       case (x, _, false) => new StringBuilder(x)
     }
   }
   
-  def lineart(p1: Properties, p2: Properties, p3: Properties, p4: Properties)(pretty: Boolean) = {
+  def lineart(p1: Properties, p2: Properties, p3: Properties, p4: Properties)(pretty: Boolean): StringBuilder = {
     (p1, p2, p3, p4) match {
       //   up           down        left        right
       case (SingleLine, SingleLine, SingleLine, SingleLine) => pick("┼","+") (pretty)
@@ -251,7 +314,7 @@ object Ascii {
   /*
    Add the second table below the first, discarding its column headings.
    */
-  def concatTable[A](properties: Properties, table: Table[A], table1: Table[A]): Table[A] = {
-    Table(Group(properties, List(table.ch, table1.ch)), table.rh, table.a ++ table1.a)
+  def concatTable[R, C, A](properties: Properties, table: Table[R, C, A], table1: Table[R, C, A]): Table[R, C, A] = {
+    Table(Group(properties, List(table.rh, table1.rh)), table.ch, table.cells ++ table1.cells)
   }
 }

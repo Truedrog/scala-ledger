@@ -4,6 +4,7 @@ import java.time.LocalDate
 import sledger.Types.{Status, Unmarked}
 import sledger.data.dates.nulldate
 import sledger.data.posting.{Posting, nullsourcepos}
+
 object transaction {
   case class Transaction(
                           index: Int,

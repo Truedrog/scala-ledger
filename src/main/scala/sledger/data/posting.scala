@@ -45,6 +45,33 @@ object posting {
       transaction = None)
   }
   def posting: Posting = nullposting
-  
-  def renderCommentLines(t: String) = ???
+
+  def postingAsLines(elideamount:Boolean, onelineamounts:Boolean, acctwidth: Int, amtwidth: Int, p:Posting) = {
+    
+    val (samelinecomments, newlinecomments) =
+      renderCommentLines(p.comment) match {
+        case Nil => ("", List())
+        case c :: cs => (c, cs)
+      }
+  }
+
+  def showAccountName(mwidth: Option[Int], accountName: AccountName): AccountName =
+    mwidth.fold(accountName)(accountName.take(_))
+
+  def renderCommentLines(t: String): List[String] = {
+   
+    val comment = (t: String) => "; " + t
+
+    t.split("\\\\n").toList match {
+      case l :: Nil => List(commentSpace(comment(l)))
+      case "" :: ls => "" :: ls.map(a => lineIndent(comment(a)))
+      case l :: ls => commentSpace(comment(l)) :: ls.map(a => lineIndent(comment(a)))
+      case Nil => List()
+    }
+  }
+
+  def lineIndent(t: String): String = "    " + t
+
+  def commentSpace(t: String): String = "  " + t
+
 }
