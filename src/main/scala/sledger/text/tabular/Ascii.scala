@@ -2,7 +2,6 @@ package sledger.text.tabular
 
 import scala.collection.decorators._
 import cats.{Group => _, _}
-import cats.data._
 import cats.syntax.all._
 
 import sledger.text.WideString._
@@ -30,14 +29,14 @@ object Ascii {
   
   def textCell(a: Align, x: String): Cell = {
     val texts = if (x.isEmpty) List("") else {
-      x.split("\\\\n").toList
+      x.split("\\n").toList
     }
     Cell(a,
-      texts.map(wideBuilderFromString)
+      texts.map(wbFromString)
     )
   }
   
-  def textCells(a: Align, txts: List[String]): Cell = Cell(a, txts.map(wideBuilderFromString))
+  def textCells(a: Align, txts: List[String]): Cell = Cell(a, txts.map(wbFromString))
   
   def cellWidth(cell: Cell): Int = cell.ls.map(x => x.width).maxOption.fold(0)(a => a)
   
@@ -143,12 +142,12 @@ object Ascii {
       } else xs
 
     def bar(VPos: VPos, properties: Properties): StringBuilder =
-      Monoid.combineAll(renderHLine(vpos = VPos,
+      renderHLine(vpos = VPos,
         borders = tableOps.borderSpaces,
         pretty = tableOps.prettyTable,
         w = sizes,
         header = ch2,
-        prop = properties)) 
+        prop = properties).combineAll 
         
     val unlinesB = (builders: List[StringBuilder]) =>
       Foldable[List].foldMap(builders) {a => a |+| new StringBuilder("""\n""")}
@@ -199,14 +198,11 @@ object Ascii {
       }
     }
 
-    Monoid[StringBuilder]
-      .combineAll(
-        flattenHeader(zipHeader(0, maxWidth, header.map(padRow)))
-          .map(_.fold(hsep, padcell))
-          .transpose
-          .map(x => addBorders(Monoid[StringBuilder].combineAll(x)))
-          .intersperse(new StringBuilder("""\n"""))
-      )
+    flattenHeader(zipHeader(0, maxWidth, header.map(padRow)))
+      .map(_.fold(hsep, padcell))
+      .transpose
+      .map(x => addBorders(x.combineAll))
+      .intersperse(new StringBuilder("""\n""")).combineAll
   }
   
   def renderHLine[A](vpos: VPos,
@@ -220,7 +216,7 @@ object Ascii {
     }
 
     def edge(hpos: HPos): StringBuilder = boxchar(vpos, hpos, SingleLine, prop)(pretty)
-    def coreLine = {
+    def coreLine: StringBuilder = {
       val xs = flattenHeader(zipHeader(0, w, header))
       Foldable[List].foldMap(xs) {
         case Left(p) => vsep(p)
@@ -230,11 +226,12 @@ object Ascii {
     
     def sep: StringBuilder = boxchar(vpos, HM, NoLine, prop)(pretty)
     
-    def vsep(v: Properties) = v match {
+    def vsep(v: Properties):StringBuilder = v match {
       case NoLine => sep.append(sep)
       case _      => sep.append(cross(v, prop)).append(sep)
     }
-    def cross(v: Properties, h: Properties) = boxchar(vpos,HM, v,h)(pretty)
+
+    def cross(v: Properties, h: Properties): StringBuilder = boxchar(vpos, HM, v, h)(pretty)
     
     List(addBorders(sep).append(coreLine).append(sep))
   }

@@ -24,5 +24,5 @@ object WideString {
   
   def wideBuilderToString(wb: WideBuilder): String = wb.builder.result()
 
-  def wideBuilderFromString(t: String): WideBuilder = WideBuilder(new StringBuilder(t), t.width)
+  def wbFromString(t: String): WideBuilder = WideBuilder(new StringBuilder(t), t.width)
 }

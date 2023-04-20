@@ -4,8 +4,12 @@ import cats._
 import cats.data._
 import cats.syntax.all._
 import cats.derived
+import scala.collection.decorators._
+
 import io.estatico.newtype.macros.newtype
-import sledger.text.WideString.{WideBuilder, wideBuilderFromString}
+import sledger.text.WideString.{WideBuilder, wbFromString}
+import utils.Math.numDigits
+import utils.lastDef
 
 import scala.math.BigDecimal.RoundingMode
 
@@ -91,46 +95,13 @@ object amount {
     }
   }
 
-  sealed trait AmountPrice
-  case class UnitPrice(a: Amount) extends AmountPrice
-  case class TotalPrice(a: Amount )extends AmountPrice
-  
-  case class AmountStyle(side: Side,
-                         commodityspaced: Boolean,
-                         precision: AmountPrecision,
-                         decimalpoint: Option[Char],
-                         digitgroups: Option[DigitGroupStyle]
-                        )
-
-  object AmountStyle {
-    implicit val showAmountStyle: Show[AmountStyle] = { as =>
-      List("AmountStyle \"", as.side.show, as.commodityspaced.show, as.precision.show, as.decimalpoint.show, as.digitgroups.show, "..\"").mkString(" ")
-    }
-    implicit val eqAmountStyle: Eq[AmountStyle] = derived.semiauto.eq
-    implicit val ordAmountStyle: Order[AmountStyle] = derived.semiauto.order
-  }
-
-  def amountstyle: AmountStyle = AmountStyle(side = L,
-    commodityspaced = false,
-    precision = Precision(0),
-    decimalpoint = Some('.'),
-    digitgroups = None)
-
-  type CommoditySymbol = String
-
-  case class Commodity(symbol: CommoditySymbol, format: Option[AmountStyle])
-
-  object Commodity {
-    implicit val showCommodity: Show[Commodity] = derived.semiauto.show
-  }
-
   case class Amount(
                      commodity: CommoditySymbol, // commodity symbol, or special value "AUTO"
                      quantity: BigDecimal, // numeric quantity, or zero in case of "AUTO"
                      style: AmountStyle,
 //                     price: Option[AmountPrice] //-- the (fixed, transaction-specific) price for this amount, if any
-  )
-  
+                   )
+
   object Amount {
 
     implicit val showAmount: Show[Amount] = derived.semiauto.show
@@ -163,6 +134,43 @@ object amount {
       override def compare(x: Amount, y: Amount): Int = ???
     }
   }
+//  sealed trait AmountPrice
+//  case class UnitPrice(a: Amount) extends AmountPrice
+//  case class TotalPrice(a: Amount )extends AmountPrice
+//  object AmountPrice {
+//    implicit val eqAmountPrice: Eq[AmountPrice] = derived.semiauto.eq
+//    implicit val ordAmountPrice: Order[AmountPrice] = derived.semiauto.order
+//  }
+  case class AmountStyle(side: Side,
+                         commodityspaced: Boolean,
+                         precision: AmountPrecision,
+                         decimalpoint: Option[Char],
+                         digitgroups: Option[DigitGroupStyle]
+                        )
+
+  object AmountStyle {
+    implicit val showAmountStyle: Show[AmountStyle] = { as =>
+      List("AmountStyle \"", as.side.show, as.commodityspaced.show, as.precision.show, as.decimalpoint.show, as.digitgroups.show, "..\"").mkString(" ")
+    }
+    implicit val eqAmountStyle: Eq[AmountStyle] = derived.semiauto.eq
+    implicit val ordAmountStyle: Order[AmountStyle] = derived.semiauto.order
+  }
+
+  def amountstyle: AmountStyle = AmountStyle(side = L,
+    commodityspaced = false,
+    precision = Precision(0),
+    decimalpoint = Some('.'),
+    digitgroups = None)
+
+  type CommoditySymbol = String
+
+  case class Commodity(symbol: CommoditySymbol, format: Option[AmountStyle])
+
+  object Commodity {
+    implicit val showCommodity: Show[Commodity] = derived.semiauto.show
+  }
+
+
 
   def nullamount: Amount = Amount(commodity = "", quantity = 0, style = amountstyle
 //    , price = None
@@ -170,8 +178,42 @@ object amount {
 
   def missingamt: Amount = nullamount.copy(commodity = "AUTO")
 
-  def transformAmount(f: BigDecimal => BigDecimal, amount: Amount): Amount = amount.copy(quantity = f(amount.quantity))
+  def amountWithCommodity(cSymbol: CommoditySymbol, amount: Amount): Amount = {
+    amount.copy(commodity = cSymbol)
+  }
   
+  def transformAmount(f: BigDecimal => BigDecimal, amount: Amount): Amount = amount.copy(quantity = f(amount.quantity))
+
+  def amountRoundedQuantity(amount: Amount): BigDecimal = {
+    amount.style.precision match {
+      case Precision(p) => amount.quantity.setScale(p, RoundingMode.HALF_EVEN)
+      case NaturalPrecision => amount.quantity
+    }
+  }
+  
+  def testAmountAndTotalPrice(f: Amount => Boolean, amount: Amount): Boolean = {
+     f(amount) // todo test for price
+  }
+
+  def amountLooksZero(amount: Amount): Boolean = {
+    val (e, q) = (amount.quantity.scale, amount.quantity.underlying()
+      .unscaledValue()
+      .intValue())
+    val looksZero = (amt: Amount) => amt.style.precision match {
+      case Precision(d) => if (e > d) {
+        q.abs <= (5 * 10 ^ (e - d.toInt - 1))
+      } else {
+        q == 0
+      }
+      case NaturalPrecision => q == 0
+    }
+    testAmountAndTotalPrice(looksZero, amount)
+  }
+  
+  def amountIsZero(amount: Amount): Boolean = {
+    testAmountAndTotalPrice(amt => amt.quantity.equals(BigDecimal(0)), amount)
+  }
+
   def isNegativeAmount(amount: Amount): Boolean = amount.quantity < 0
   
   def similarAmountsOp(op: (BigDecimal, BigDecimal) => BigDecimal, amount1: Amount, amount2: Amount): Amount = 
@@ -237,10 +279,12 @@ object amount {
 
   def amountKey(amount: Amount): MixedAmountKeyNoPrice = MixedAmountKeyNoPrice(amount.commodity) 
   def mixed(amounts: List[Amount]): MixedAmount = amounts.foldLeft(nullmixedamout)(maAddAmount)
+  def isMissingMixedAmount(ma: MixedAmount): Boolean = ma.mixed.contains(amountKey(missingamt))
   def nullmixedamout: MixedAmount = MixedAmount(mixed = Map.empty)
   def missingmixedamt: MixedAmount = mixedAmount(missingamt)
   def mixedAmount(amount: Amount): MixedAmount = MixedAmount(Map(amountKey(amount) -> amount))
-  def maAddAmount(ma: MixedAmount, a: Amount): MixedAmount = MixedAmount(ma.mixed.updated(amountKey(a), a)) 
+  def usd(n: BigDecimal) = nullamount.copy(commodity="$", quantity=n.setScale(2), style=amountstyle.copy(precision = Precision(2)))
+  def maAddAmount(ma: MixedAmount, a: Amount): MixedAmount = MixedAmount(ma.mixed.updated(amountKey(a), a))  //todo price handling
  
   def mapMixedAmountUnsafe(f: Amount => Amount, mixedAmount: MixedAmount): MixedAmount =
     MixedAmount(mixedAmount.mixed.map{ case (ma, a) => ma->f(a) })
@@ -264,19 +308,21 @@ object amount {
   def maSum(mas: List[MixedAmount]): MixedAmount =
     mas.foldLeft(nullmixedamout)(maPlus)
   
-  def amountRoundedQuantity(amount:Amount): BigDecimal = {
-    amount.style.precision match {
-      case Precision(p) => amount.quantity.setScale(p, RoundingMode.HALF_EVEN)
-      case NaturalPrecision => amount.quantity
+  def amounts(ma: MixedAmount): List[Amount] = {
+    val (zeros, nonzeros) =  ma.mixed.partition(ma => amountIsZero(ma._2))
+    val newzeros = zeros.find { case (_, a) => a.commodity.nonEmpty}.map(_._2).getOrElse(nullamount)
+    if(isMissingMixedAmount(ma)) {
+      List(missingamt)
+    } else if (nonzeros.isEmpty) 
+      List(newzeros)
+    else {
+      nonzeros.values.toList
     }
   }
 
   def withPrecision(amount: Amount, precision: AmountPrecision): Amount =
     amount.copy(style = amount.style.copy(precision = precision))
-  
-  def amountLooksZero(amount: Amount): Boolean =
-    BigDecimal(0) == amount.quantity
-  
+
   def showAmountB(showOpts: AmountDisplayOpts, amount: Amount): WideBuilder = {
 //    val color = if (showOpts.displayColour && isNegativeAmount(amount)) else 
    
@@ -292,7 +338,6 @@ object amount {
       } else {
         (q, quoteCommoditySymbolIfNeeded(amount.commodity))
       }
-      
     }
     
     val space = if(c.nonEmpty && amount.style.commodityspaced) WideBuilder(new StringBuilder(" "),1) else Monoid[WideBuilder].empty
@@ -302,8 +347,8 @@ object amount {
       Monoid[WideBuilder].empty
     } else {
       amount.style.side match {
-        case L => showC(wideBuilderFromString(c), space) |+| quantity |+| price
-        case R => quantity |+| showC(space, wideBuilderFromString(c)) |+| price
+        case L => showC(wbFromString(c), space) |+| quantity |+| price
+        case R => quantity |+| showC(space, wbFromString(c)) |+| price
       }
     }
   }
@@ -349,5 +394,150 @@ object amount {
     }
     
     signB |+| intB |+| fracB
+  }
+  
+  case class AmountDisplay(
+                          builder: WideBuilder,
+                          total: Int
+                          )
+
+  def optionAppend[A](maybe: Option[A], lst: List[A]): List[A] =
+    maybe.foldLeft(lst)((acc, a) => a +: acc)
+    
+  def nullAmountDisplay: AmountDisplay = AmountDisplay(Monoid[WideBuilder].empty, 0)
+  
+  def showMixedAmount(ma: MixedAmount): String = {
+    showMixedAmountB(noColour, ma).builder.result()
+  }
+  
+  def showMixedAmountOneLine(ma: MixedAmount): String = {
+    showMixedAmountB(oneLine.copy(displayPrice = true), ma).builder.result()
+  }
+  
+  def showMixedAmountWithZeroCommodity(ma: MixedAmount): String = {
+    showMixedAmountB(noColour.copy(displayZeroCommodity = true), ma).builder.result()
+  }
+  
+  def showMixedAmountB(maDisplayOpts: AmountDisplayOpts, ma: MixedAmount): WideBuilder = {
+    if (maDisplayOpts.displayOneLine) showMixedAmountOneLineB(maDisplayOpts, ma) else {
+      val sep = WideBuilder(new StringBuilder("""\n"""), 0)
+      val ls = showMixedAmountLinesB(maDisplayOpts, ma)
+      val width = ls.map(_.width).headOption.getOrElse(0)
+      WideBuilder(ls.intersperse(sep).combineAll.builder, width)
+    }
+  }
+  
+  def showMixedAmountOneLineB(maDisplayOpts: AmountDisplayOpts, ma: MixedAmount): WideBuilder = {
+    def zipWith[A, B, C](listA: List[A])(listB: List[B])(f: (A, B) => C): List[C] = {
+      listA.zip(listB).map { case (a, b) => f(a, b) }
+    }
+    val sep = WideBuilder(new StringBuilder(", "), 2)
+    val astrs = amtDisplayList(sep.width, showAmountB(maDisplayOpts, _), orderedAmounts(maDisplayOpts,
+      if (maDisplayOpts.displayPrice) ma else mixedAmountStripPrices(ma)))
+    val n = astrs.length
+    
+    val withElided = zipWith(List.range(n - 1, n - 2, 0))(_: List[AmountDisplay]) { case (n2, amtDisplay) =>
+      (amtDisplay, elisionDisplay(None, sep.width, n2, amtDisplay))
+    }
+  
+    
+    def elideTo(m: Int, xs: List[AmountDisplay]): List[AmountDisplay] = { 
+      addElide(takeFitting(m, withElided(xs)))
+    }
+      
+    def addElide(xs: List[(AmountDisplay, Option[AmountDisplay])]): List[AmountDisplay] = {
+      xs match {
+        case _ :: next    => optionAppend(next.last._2, next.map(_._1)) 
+        case Nil          => List.empty
+      }
+    }
+      
+    def takeFitting(m: Int, xs: List[(AmountDisplay, Option[AmountDisplay])]): List[(AmountDisplay, Option[AmountDisplay])] = {
+      xs match {
+        case Nil => List.empty
+        case head :: rest => head :: dropWhileRev(rest) { case (a, e) => m < e.getOrElse(a).total}
+      }
+    }
+    def dropWhileRev[A](lst: List[A])(p: A => Boolean): List[A] =
+      lst.foldRight(List.empty[A]) { (x, xs) => if (xs.isEmpty && p(x)) List.empty else x :: xs }
+
+    val elided = maDisplayOpts.displayMaxWidth.fold(astrs)(x => elideTo(x, astrs))
+    val width = elided.lastOption.fold(0) { a => a.total }
+
+    def pad(wideBuilder: WideBuilder): WideBuilder = {
+      val w = maDisplayOpts.displayMinWidth.getOrElse(0)
+      WideBuilder(new StringBuilder(" " * (w - width)), w) |+| wideBuilder
+    }
+   
+    
+    val builder = pad(elided.map(a => a.builder).intersperse(sep).combineAll).builder
+    val w =  width.max(maDisplayOpts.displayMinWidth.getOrElse(0)) 
+    WideBuilder(builder, w)
+  }
+  
+  def showMixedAmountLinesB(maDisplayOpts: AmountDisplayOpts, ma: MixedAmount): List[WideBuilder] = {
+    
+    val sep = WideBuilder(new StringBuilder("""\n"""), 0)
+
+    def elideTo(x: Int, xs: List[AmountDisplay]): List[AmountDisplay] = {
+      val (short, long) = xs.partition(ad => ad.builder.width >= x)
+      val elisionStr = elisionDisplay(Some(x), sep.width, long.length, lastDef(nullAmountDisplay, short))
+      optionAppend(elisionStr, short)
+    }
+    
+    val astrs = amtDisplayList(sep.width, showAmountB(maDisplayOpts, _), orderedAmounts(maDisplayOpts,
+      if(maDisplayOpts.displayPrice) ma else mixedAmountStripPrices(ma)))
+    val elided = maDisplayOpts.displayMaxWidth.fold(astrs)(x => elideTo(x, astrs))
+    val width = elided.map(_.builder.width).max
+    
+    def pad(amountDisplay: AmountDisplay): AmountDisplay = {
+      maDisplayOpts.displayMinWidth match {
+        case Some(mw) =>
+          val w = width.max(mw) - amountDisplay.builder.width
+          amountDisplay.copy(builder = WideBuilder(new StringBuilder(" " * w), w) |+| amountDisplay.builder)
+        case None => amountDisplay
+      }
+    }
+    elided.map(a => pad(a).builder)
+  }
+
+  def orderedAmounts(maDisplayOpts: AmountDisplayOpts, ma: MixedAmount): List[Amount] = {
+    def pad(c: CommoditySymbol)(amounts: List[Amount]): Amount = {
+      amounts.find(a => c == a.commodity).getOrElse(amountWithCommodity(c, nullamount))
+    }
+    maDisplayOpts.displayOrder.fold(identity[List[Amount]](_)) {_.traverse(pad)}(amounts(ma))
+  }
+  
+  def amtDisplayList(sep: Int, showAmt: Amount => WideBuilder, amounts: List[Amount]): List[AmountDisplay] = {
+    def display(tot: Int, amt: Amount): (Int, AmountDisplay) = {
+      val str = showAmt(amt)
+      val tot1 = tot + str.width + sep
+      (tot, AmountDisplay(str, tot1))
+    }
+
+    amounts.mapAccumulate(-sep)(display)._2
+  }
+  
+  def mixedAmountStripPrices(ma: MixedAmount): MixedAmount = {
+    val (noPrices, withPrices) = ma.mixed.partition { case (_, amt) => true}//todo actual strip prices
+    withPrices.foldLeft(MixedAmount(noPrices)) { case (m, (_, a)) =>
+      maAddAmount(m, a) //todo actual strip prices
+    }
+  }
+
+  def elisionDisplay(mmax: Option[Int], sep: Int, n: Int, lastAmt: AmountDisplay): Option[AmountDisplay] = {
+    val fullString = n.toString + " more.."
+    val fullLength = sep + 7 + numDigits(n)
+    val str = mmax match {
+      case Some(m) if fullLength > m => fullString.take(m - 2) + ".."
+      case None => fullString
+    }
+    val len = mmax match {
+      case None => fullLength
+      case Some(m) => 2.max(m.min(fullLength))
+    }
+    if (n > 0) Some(AmountDisplay(WideBuilder(new StringBuilder(str), len), lastAmt.total + len)) else {
+      None
+    }
   }
 }

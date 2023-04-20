@@ -250,8 +250,8 @@ object common {
     }
 
     def digitGroup(raw: RawNumber): DigitGroup = raw match {
-      case NoSeparators(digitGrp, _) => digitGrp
-      case WithSeparators(_, digitGroups, _) => Monoid.combineAll(digitGroups)
+      case NoSeparators(digitGrp, _)         => digitGrp
+      case WithSeparators(_, digitGroups, _) => digitGroups.combineAll
     }
 
     def groupSizes(digitGroups: List[DigitGroup]): List[Byte] = digitGroups.map(_.digitGroupLength) match {
@@ -318,7 +318,7 @@ object common {
     simpleamountp <* spaces
   }
 
-//  val balanceassertionp: Parsley[BalanceAssertion] = { //todo readd later
+//  val balanceassertionp: Parsley[BalanceAssertion] = { //todo re-add later
 //    (pos,
 //      char('='),
 //      option(attempt(char('='))).map(_.isDefined),
