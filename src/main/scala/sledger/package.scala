@@ -2,7 +2,7 @@ package sledger
 import cats._
 import cats.data._
 import cats.syntax.all._
-import sledger.data.amount.{Amount, MixedAmount}
+import sledger.data.Amounts.{Amount, MixedAmount}
 
 package object Types {
 

@@ -9,10 +9,10 @@ import parsley.debug._
 import parsley.errors.combinator._
 import parsley.position.pos
 
-import sledger.data.amount._
-import sledger.data.posting._
-import sledger.data.transaction.{Transaction, txnTieKnot}
-import sledger.read.common.{accountnamep, amountp, codep, datep, descriptionp, emptyorcommentlinep, followingcommentp, multilinecommentp, statusp, transactioncommentp}
+import sledger.data.Amounts._
+import sledger.data.Postings._
+import sledger.data.Transactions.{Transaction, txnTieKnot}
+import sledger.read.Common.{accountnamep, amountp, codep, datep, descriptionp, emptyorcommentlinep, followingcommentp, multilinecommentp, statusp, transactioncommentp}
 import utils.Parse.{skipNonNewlineSpaces, skipNonNewlineSpaces1, spacenonewline}
 
 object JournalReader {

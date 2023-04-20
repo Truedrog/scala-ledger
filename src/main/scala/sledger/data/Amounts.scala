@@ -13,7 +13,7 @@ import utils.lastDef
 
 import scala.math.BigDecimal.RoundingMode
 
-object amount {
+object Amounts {
   def isNonsimpleCommodityChar: Char => Boolean = (c: Char) => {
     val otherChars = "-+.@*;\t\n \"{}="
     otherChars.exists(e => e == c) || c.isDigit
@@ -530,7 +530,7 @@ object amount {
     val fullLength = sep + 7 + numDigits(n)
     val str = mmax match {
       case Some(m) if fullLength > m => fullString.take(m - 2) + ".."
-      case None => fullString
+      case _ => fullString
     }
     val len = mmax match {
       case None => fullLength

@@ -11,8 +11,8 @@ import sledger.text.WideString._
 
 import scala.jdk.CollectionConverters._
 import io.github.akiomik.seaw.implicits._
-import sledger.data.amount.{mixedAmount, usd}
-import sledger.data.posting.{nullposting, showPosting}
+import sledger.data.Amounts.{mixedAmount, usd}
+import sledger.data.Postings.{nullposting, showPosting}
 class HelloWorldSuite extends CatsEffectSuite {
   
   test("basic") {

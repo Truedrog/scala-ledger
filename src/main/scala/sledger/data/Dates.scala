@@ -5,7 +5,7 @@ import parsley.character.satisfy
 
 import java.time.LocalDate
 
-object dates {
+object Dates {
   val isDateSepChar: Char => Boolean = {
     case c if c == '-' || c == '/' || c == '.' => true
   }

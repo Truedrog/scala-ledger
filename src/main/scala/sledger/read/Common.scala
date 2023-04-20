@@ -17,11 +17,11 @@ import java.time.LocalDate
 import scala.util.Try
 import scala.Function.const
 import sledger.Types.{BalanceAssertion, Cleared, Pending, Status, Unmarked, isDecimalMark}
-import sledger.data.amount._
-import sledger.data.dates._
+import sledger.data.Amounts._
+import sledger.data.Dates._
 import utils.Parse.{eolof, isLineCommentStart, isNewline, skipNonNewlineSpaces, skipNonNewlineSpaces1, skipNonNewlineSpacesb, spacenonewline, takeWhileP, takeWhileP1}
 
-object common {
+object Common {
 
   private def readDecimal(s: String): Int = {
     s.foldLeft(0) { (a, c) =>

@@ -2,10 +2,10 @@ package sledger.data
 
 import java.time.LocalDate
 import sledger.Types.{Status, Unmarked}
-import sledger.data.dates.nulldate
-import sledger.data.posting.{Posting, nullsourcepos}
+import sledger.data.Dates.nulldate
+import sledger.data.Postings.{Posting, nullsourcepos}
 
-object transaction {
+object Transactions {
   case class Transaction(
                           index: Int,
                           precedingcomment: String,
