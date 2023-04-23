@@ -32,9 +32,17 @@ package object Types {
   }
   
   type AccountName = String
+
+  implicit val stringBuilderSemigroup: Semigroup[StringBuilder] = 
+    (x: StringBuilder, y: StringBuilder) => new StringBuilder().append(x).append(y) 
   
-  case class Journal()
-  
+  implicit val stringBuilderMonoid: Monoid[StringBuilder] = new Monoid[StringBuilder] {
+    override def empty: StringBuilder = new StringBuilder("")
+
+    override def combine(x: StringBuilder, y: StringBuilder): StringBuilder = {
+      new StringBuilder().append(x).append(y)
+    }
+  }
 }
 
 

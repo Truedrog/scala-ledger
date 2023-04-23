@@ -1,6 +1,10 @@
 package sledger
-
+import cats._
+import cats.syntax.all._
+import cats.effect.std.Console
 import cats.effect.{IO, IOApp}
+import parsley.{Failure, Success}
+import sledger.data.Journals.Journal
 import sledger.read.JournalReader
 
 import scala.io.Source
@@ -16,11 +20,12 @@ object Main extends IOApp.Simple {
     
     val res = for {
       f <- bracketRead
-      _ = println(f)
+//      _ = println(f)
     } yield JournalReader.parser.parse(f)
     for {
       a <- res
-      _ <- IO.println(a)
+      b = a.toEither
+      _ <- IO.println(b.fold(e => s"parse failed $e", j => j.transactions.take(1)))
     } yield ()
   }
 }

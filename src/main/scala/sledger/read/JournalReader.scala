@@ -8,8 +8,9 @@ import parsley.implicits.zipped._
 import parsley.debug._
 import parsley.errors.combinator._
 import parsley.position.pos
-
+import parsley.registers.Reg
 import sledger.data.Amounts._
+import sledger.data.Journals._
 import sledger.data.Postings._
 import sledger.data.Transactions.{Transaction, txnTieKnot}
 import sledger.read.Common.{accountnamep, amountp, codep, datep, descriptionp, emptyorcommentlinep, followingcommentp, multilinecommentp, statusp, transactioncommentp}
@@ -19,7 +20,7 @@ object JournalReader {
   val postingp: Parsley[Posting] = {
     (skipNonNewlineSpaces1,
       skipNonNewlineSpaces,
-      accountnamep,
+      accountnamep.debug("account name"),
       skipNonNewlineSpaces,
       option(amountp),
       skipNonNewlineSpaces,
@@ -32,7 +33,7 @@ object JournalReader {
 //        balanceAssertion = massertion,
         comment = comment)
     }
-  }
+  }.debug("posting")
   
   val postingsp: Parsley[List[Posting]] = {
     many(postingp.label("postings"))// todo add year postings 
@@ -43,11 +44,11 @@ object JournalReader {
       pos,
       datep.label("transaction"),
       lookAhead((spacenonewline <|> newline).label("whitespace or newline")).void,
-      descriptionp,
-      transactioncommentp,
-      statusp,
-      codep,
-      postingsp,
+      descriptionp.debug("description"),
+      transactioncommentp.debug("transactioncommentp"),
+      statusp.debug("statusp"),
+      codep.debug("codep"),
+      postingsp.debug("postingsp"),
       pos,
     ).zipped { (startPos, date, _, desc, comment, status, code, postings, endPos) => {
       val sourcePos = (startPos, endPos)
@@ -62,11 +63,12 @@ object JournalReader {
         postings = postings))
     }}
   }
-  
+  val r = Reg.make[Journal]
+
   val addJournalItemP = {
-    choice(transactionp, emptyorcommentlinep, multilinecommentp)
+    choice(transactionp.debug("transactionp").flatMap(t => r.modify(j => j.copy(transactions = t :: j.transactions))), 
+      emptyorcommentlinep.void.debug("emptyorcommentlinep"), 
+      multilinecommentp.void.debug("multilinecommentp"))
   }
-  val parser = {
-    many(addJournalItemP) <* eof.debug("end of file")
-  }
+  val parser = r.put(nulljournal) *> (many(addJournalItemP).debug("many add journalItem") *> eof *> r.get)
 }

@@ -1,12 +1,3 @@
-# a comment line
-; another commentline
-
-
-
-
-comment
-
-asdsadsa 
-end comment
-
-2021-1-01
+2022-01-01 opening balances are declared this way
+    assets:checking          1000  
+    assets:savings           -1000  

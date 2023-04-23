@@ -1,10 +1,7 @@
 package utils
-import cats._
-import cats.data._
-import cats.syntax.all._
 import parsley.Parsley
 import parsley.character.{satisfy, stringOfMany, stringOfSome, newline}
-import parsley.combinator.{eof}
+import parsley.combinator.eof
 
 
 object Parse {
@@ -22,7 +19,7 @@ object Parse {
     case _ => false
   }
   val isNonNewlineSpace: Char => Boolean = (c: Char) => {
-    !isNewline(c) && c.isWhitespace
+    !isNewline(c) && c.isSpaceChar
   }
 
   val skipNonNewlineSpaces: Parsley[Unit] = takeWhileP(isNonNewlineSpace).void

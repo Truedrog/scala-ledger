@@ -40,7 +40,7 @@ object Amounts {
 
   sealed trait AmountPrecision
 
-  case class Precision(p: Byte) extends AmountPrecision
+  case class Precision(p: Int) extends AmountPrecision
 
   case object NaturalPrecision extends AmountPrecision
 
@@ -64,7 +64,7 @@ object Amounts {
     }
   }
 
-  case class DigitGroupStyle(sep: Char, size: List[Byte])
+  case class DigitGroupStyle(sep: Char, size: List[Int])
 
   object DigitGroupStyle {
     implicit val showDigitGroupStyle: Show[DigitGroupStyle] = derived.semiauto.show
@@ -358,7 +358,7 @@ object Amounts {
       case None => WideBuilder(new StringBuilder(strPart), intLen)
       case Some(DigitGroupStyle(_, Nil)) => WideBuilder(new StringBuilder(strPart), intLen)
       case Some(DigitGroupStyle(c, s :: s1)) =>
-        def addSep(nel: NonEmptyList[Byte], l1: Int, s1: String): WideBuilder = {
+        def addSep(nel: NonEmptyList[Int], l1: Int, s1: String): WideBuilder = {
           val l2 = l1 - nel.head.toInt
           val gs2 = NonEmptyList.fromList(nel.tail).getOrElse(NonEmptyList.of(nel.head))
           val (rest, part) = s1.splitAt(l2)
