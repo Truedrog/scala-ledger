@@ -106,23 +106,17 @@ class HelloWorldSuite extends CatsEffectSuite {
     println(j)
   }
 
-  def adddggroup(d1: DigitGroup, d2: DigitGroup) = {
-    (d1, d2) match {
-      case (DigitGroup(l1, n1), DigitGroup(l2, n2)) => DigitGroup(l1 + l2, 
-        n1 * BigInt(10).pow(l2) + n2
-      )
-    }
-  }
   test("amountp") {
-    val p1 = digitgroupp
     var p = amountp
-//    println(p.parse("1,5"))
-//    println(p.parse("10047"))
-//    println(p.parse("47.18USD"))
-//    println(p.parse("47.18 USD"))
-//    println(p.parse("0"))
-//    println(p.parse("-0"))
-//    println(p.parse("-0 $"))
-    println(p.parse("1,000.000.1"))
+    println(p.parse("1,5"))
+    println(p.parse("10047"))
+    println(p.parse("47.18USD"))
+    println(p.parse("47.18 USD"))
+    println(p.parse("0"))
+    println(p.parse("-0"))
+    println(p.parse("-0 $"))
+    println(p.parse("0.0001"))
+    println(p.parse("1.0001"))
+    println(p.parse("1,2.0001"))
   }
 }
