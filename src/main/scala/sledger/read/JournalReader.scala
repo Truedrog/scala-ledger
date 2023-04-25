@@ -17,6 +17,13 @@ import sledger.read.Common.{accountnamep, amountp, codep, datep, descriptionp, e
 import utils.Parse.{skipNonNewlineSpaces, skipNonNewlineSpaces1, spacenonewline}
 
 object JournalReader {
+  
+  def initialiseAndParseJournal(r: Reg[Journal])(parser: Parsley[_], file: String = "", content: String = "") = {
+    val initJournal = nulljournal.copy()
+    val p = r.put(initJournal) *> parser
+    p.parse(content)
+  }
+  
   val postingp: Parsley[Posting] = {
     (skipNonNewlineSpaces1,
       skipNonNewlineSpaces,
@@ -63,12 +70,14 @@ object JournalReader {
         postings = postings))
     }}
   }
-  val r = Reg.make[Journal]
-
-  val addJournalItemP = {
-    choice(transactionp.debug("transactionp").flatMap(t => r.modify(j => j.copy(transactions = t :: j.transactions))), 
-      emptyorcommentlinep.void.debug("emptyorcommentlinep"), 
-      multilinecommentp.void.debug("multilinecommentp"))
+  val journalp =  {
+    val addJournalItemP = {
+      choice(transactionp.debug("transactionp").flatMap(t => r.modify(j => j.copy(transactions = t :: j.transactions))),
+        emptyorcommentlinep.void.debug("emptyorcommentlinep"),
+        multilinecommentp.void.debug("multilinecommentp"))
+    }
+    many(addJournalItemP) *> eof *> r.get
   }
-  val parser = r.put(nulljournal) *> (many(addJournalItemP).debug("many add journalItem") *> eof *> r.get)
+  val r = Reg.make[Journal]
+  val readJournal = initialiseAndParseJournal(r)(journalp, _, _)
 }
