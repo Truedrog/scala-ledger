@@ -1,3 +1,5 @@
+package sledger
+
 package object utils {
   def lastDef[A](default: A, xs: Seq[A]): A =
     xs.lastOption.getOrElse(default)

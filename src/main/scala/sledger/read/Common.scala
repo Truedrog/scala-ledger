@@ -6,20 +6,20 @@ import cats.derived._
 import parsley.Parsley
 import parsley.Parsley.{attempt, join, lookAhead, notFollowedBy, pure}
 import parsley.character.{char, digit, endOfLine, isSpace, newline, satisfy, string}
-import parsley.combinator.{attemptChoice, between, choice, eof, many, manyUntil, option, optional, optionalAs}
-import parsley.position.{offset, pos}
+import parsley.combinator.{attemptChoice, between, eof, many, manyUntil, option, optionalAs}
+import parsley.position.offset
 import parsley.implicits.zipped._
 import parsley.errors.combinator._
-import parsley.debug._
 import parsley.cats.instances._
 
 import java.time.LocalDate
 import scala.util.Try
 import scala.Function.const
-import sledger.Types.{BalanceAssertion, Cleared, Pending, Status, Unmarked, isDecimalMark}
+import sledger.Types.{Cleared, Pending, Status, Unmarked, isDecimalMark}
+import sledger.data.AccountNames.AccountName
 import sledger.data.Amounts._
 import sledger.data.Dates._
-import utils.Parse.{eolof, isLineCommentStart, isNewline, skipNonNewlineSpaces, skipNonNewlineSpaces1, skipNonNewlineSpacesb, spacenonewline, takeWhileP, takeWhileP1}
+import sledger.utils.Parse.{eolof, isLineCommentStart, isNewline, skipNonNewlineSpaces, skipNonNewlineSpaces1, skipNonNewlineSpacesb, spacenonewline, takeWhileP, takeWhileP1}
 
 object Common {
 
@@ -115,7 +115,7 @@ object Common {
       .zipped { (firstPart, otherParts) => (firstPart :: otherParts).mkString(" ") }
   }
   val singlespacedtext1p: Parsley[String] = singlespacedtextsatisfying1p(const(true))
-  val accountnamep: Parsley[String] = singlespacedtext1p
+  val accountnamep: Parsley[AccountName] = singlespacedtext1p
 
   sealed trait RawNumber
 
@@ -174,10 +174,7 @@ object Common {
       for {
         decPt       <- satisfy(c => isDecimalMark(c) && c != digitSep)
         decDigitGrp <- digitgroupp <|> pure[DigitGroup](Monoid[DigitGroup].empty)
-//        _ = println(decDigitGrp)
       } yield {
-//        println(decDigitGrp.digitGroupLength, "TRAILING NUMBERS")
-//        println(decDigitGrp.digitGroupNumber, "TRAILING NUMBERS")
         WithSeparators(digitSep, digitGroups, Some((decPt, decDigitGrp)))
       }
     }
@@ -245,16 +242,9 @@ object Common {
   }
 
   val fromRawNumber: RawNumber => Either[String, (BigDecimal, Int, Option[Char], Option[DigitGroupStyle])] = (raw: RawNumber) => {
-//    println(raw.show, "raw.show")
-//    println(raw, "raw.print")
-//    println(s"digitGroup ${digitGroup(raw).show}")
-//    println(s"decimalGroup ${decimalGroup(raw).show}")
     def toQuantity(preDecimalGrp: DigitGroup, posDecimalGrp: DigitGroup): Either[String, (BigDecimal, Int)] = {
-//      println(s"posDecimalGrp", posDecimalGrp)
       val digitGrpNum = (preDecimalGrp |+| posDecimalGrp).digitGroupNumber
-//      println(s"digitGrpNum $digitGrpNum")
       val precision = posDecimalGrp.digitGroupLength - 0 // fixme get exponent
-//      println(s"precision $preDecimalGrp")
       if (precision < 0) {
         Right(BigDecimal(0, digitGrpNum.toInt *10^(-precision)), 0)
       } else if (precision < 255) {

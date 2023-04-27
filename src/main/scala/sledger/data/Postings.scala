@@ -3,16 +3,17 @@ package sledger.data
 import java.time.DayOfWeek
 import cats.{Group => _, _}
 import cats.syntax.all._
-import sledger.Types.{AccountName, Status, Unmarked}
+import io.github.akiomik.seaw.implicits._
 import sledger.data.Amounts.{MixedAmount, noColour, nullmixedamout, showMixedAmountLinesB}
+import sledger.data.AccountNames.AccountName
 import sledger.data.Transactions.Transaction
 import sledger.text.tabular.Ascii._
-import io.github.akiomik.seaw.implicits._
-import sledger.Types
-import sledger.text.WideString.WideBuilder
 import sledger.text.tabular.Tabular.{Group, Header, NoLine}
-import utils.Text.fitText
-import utils.maximumBound
+import sledger.text.WideString.WideBuilder
+import sledger.Types
+import sledger.Types.{Status, Unmarked}
+import sledger.utils.Text.fitText
+import sledger.utils.maximumBound
 
 object Postings {
   case class Posting(

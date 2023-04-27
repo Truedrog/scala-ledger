@@ -1,4 +1,5 @@
-package utils
+package sledger.utils
+
 import io.github.akiomik.seaw.implicits._
 
 import scala.annotation.tailrec

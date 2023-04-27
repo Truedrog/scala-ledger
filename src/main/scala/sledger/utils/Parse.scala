@@ -1,4 +1,5 @@
-package utils
+package sledger.utils
+
 import parsley.Parsley
 import parsley.character.{satisfy, stringOfMany, stringOfSome, newline}
 import parsley.combinator.eof

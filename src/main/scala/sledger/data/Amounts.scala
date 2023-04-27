@@ -8,9 +8,8 @@ import scala.collection.decorators._
 
 import io.estatico.newtype.macros.newtype
 import sledger.text.WideString.{WideBuilder, wbFromString}
-import utils.Math.numDigits
-import utils.lastDef
-
+import sledger.utils._
+import sledger.utils.Math._
 import scala.math.BigDecimal.RoundingMode
 
 object Amounts {
@@ -440,7 +439,6 @@ object Amounts {
       (amtDisplay, elisionDisplay(None, sep.width, n2, amtDisplay))
     }
   
-    
     def elideTo(m: Int, xs: List[AmountDisplay]): List[AmountDisplay] = { 
       addElide(takeFitting(m, withElided(xs)))
     }
@@ -536,8 +534,9 @@ object Amounts {
       case None => fullLength
       case Some(m) => 2.max(m.min(fullLength))
     }
-    if (n > 0) Some(AmountDisplay(WideBuilder(new StringBuilder(str), len), lastAmt.total + len)) else {
+    if (n > 0) 
+      Some(AmountDisplay(WideBuilder(new StringBuilder(str), len), lastAmt.total + len)) 
+    else
       None
-    }
   }
 }

@@ -25,7 +25,6 @@ import sledger.data.Journals.{Journal, nulljournal}
 import sledger.read.Common
 import sledger.read.Common.{DigitGroup, amountp, datep, descriptionp, digitgroupp, emptyorcommentlinep, followingcommentp, multilinecommentp, noncommenttextp, rawnumberp, transactioncommentp, yearorintp}
 import sledger.read.JournalReader.transactionp
-import utils.Parse.spacenonewline
 
 import java.time.{LocalDate, Year}
 class HelloWorldSuite extends CatsEffectSuite {

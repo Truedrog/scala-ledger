@@ -31,7 +31,6 @@ package object Types {
       }
   }
   
-  type AccountName = String
 
   implicit val stringBuilderSemigroup: Semigroup[StringBuilder] = 
     (x: StringBuilder, y: StringBuilder) => new StringBuilder().append(x).append(y) 
