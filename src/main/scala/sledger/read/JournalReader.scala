@@ -1,23 +1,26 @@
 package sledger.read
 
-import cats.data.EitherT
-import cats.syntax.all._
+import cats.data._
 import cats.effect._
-import parsley.{Parsley, Result}
+import parsley.Parsley
 import parsley.Parsley.lookAhead
 import parsley.character.newline
 import parsley.combinator._
-import parsley.implicits.zipped._
 import parsley.debug._
 import parsley.errors.combinator._
+import parsley.implicits.zipped._
 import parsley.position.pos
 import parsley.registers.Reg
 import sledger.data.Amounts._
+import sledger.data.InputOptions.defInputOpts
 import sledger.data.Journals._
+import sledger.data.Journals.JournalOps._
 import sledger.data.Postings._
 import sledger.data.Transactions.{Transaction, txnTieKnot}
 import sledger.read.Common.{accountnamep, amountp, codep, datep, descriptionp, emptyorcommentlinep, followingcommentp, multilinecommentp, statusp, transactioncommentp}
 import sledger.utils.Parse.{skipNonNewlineSpaces, skipNonNewlineSpaces1, spacenonewline}
+
+import java.time.LocalDateTime
 
 object JournalReader {
   private val r = Reg.make[Journal]
@@ -34,7 +37,7 @@ object JournalReader {
       followingcommentp
     ).zipped { (_, _, accountname, _, amount, _, _, comment) =>
       posting.copy(account = accountname,
-        amount = amount.fold(missingmixedamt)(a => mixedAmount(a)),
+        amount = amount.fold(missingMixedAmt)(a => mixedAmount(a)),
         //        balanceAssertion = massertion,
         comment = comment)
     }
@@ -71,7 +74,7 @@ object JournalReader {
   
   private val journalp = {
     val addJournalItemP = {
-      choice(transactionp.flatMap(t => r.modify(j => j.copy(transactions = t :: j.transactions))),
+      choice(transactionp.flatMap(t => r.modify(_.addTransaction(t))),
         emptyorcommentlinep.void,
         multilinecommentp.void)
     }
@@ -82,24 +85,35 @@ object JournalReader {
     override def getMessage: String = parseError
   }
 
-  def finalizeJournal[F[_] : Sync](file: String, content: String, parsedJournal: Journal): EitherT[F, ParseError, Journal] = {
-    Sync[F].delay { }
-    EitherT.pure(parsedJournal)
+  def finalizeJournal[F[_]:Sync](file: String, content: String, pj: Journal): EitherT[F, String, Journal] = {
+    val definopts = defInputOpts
+    import sledger.data.Journals.JournalOps._
+    val t = Sync[F].delay(LocalDateTime.now())
+    for {
+      time <- EitherT.liftF(t)
+      up <- EitherT (Sync[F].delay{
+        pj.withLastReadTime(time)
+          .withFile(file, content)
+          .reverse
+          .withAccountTypes
+          .applyCommodityStyles
+      })
+    } yield up
   }
   
   def initialiseAndParseJournal[F[_] : Sync](r: Reg[Journal])
-                                            (parser: Parsley[Journal], file: String = "", content: String = ""): EitherT[F, ParseError, Journal] = {
+                                            (parser: Parsley[Journal], file: String = "", content: String = ""): EitherT[F, String, Journal] = {
     val initJournal = nulljournal.copy()
     val p = r.put(initJournal) *> parser
     for {
       parsedJournal <- EitherT {
-        Sync[F].pure(p.parse(content).toEither.leftMap(a => ParseError(a)))
+        Sync[F].pure(p.parse(content).toEither)
       }
       j <- finalizeJournal(file, content, parsedJournal)
     } yield j
   }
 
 
-  def readJournal[F[_] : Sync]: (CommoditySymbol, CommoditySymbol) => EitherT[F, ParseError, Journal] = 
+  def readJournal[F[_] : Sync]: (CommoditySymbol, CommoditySymbol) => EitherT[F, String, Journal] = 
     initialiseAndParseJournal(r)(journalp, _, _)
 }

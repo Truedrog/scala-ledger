@@ -4,7 +4,7 @@ import java.time.DayOfWeek
 import cats.{Group => _, _}
 import cats.syntax.all._
 import io.github.akiomik.seaw.implicits._
-import sledger.data.Amounts.{MixedAmount, noColour, nullmixedamout, showMixedAmountLinesB}
+import sledger.data.Amounts.{AmountStyle, CommoditySymbol, MixedAmount, amountKey, isMissingMixedAmount, noColour, nullMixedAmount, showMixedAmountLinesB, styledMixedAmount}
 import sledger.data.AccountNames.AccountName
 import sledger.data.Transactions.Transaction
 import sledger.text.tabular.Ascii._
@@ -22,6 +22,7 @@ object Postings {
                       status: Status,
                       account: AccountName,
                       amount: MixedAmount,
+                      original: Option[Posting],
                       comment: String,
                       //                      balanceAssertion: Option[BalanceAssertion],
                       transaction: Option[Transaction]
@@ -40,6 +41,15 @@ object Postings {
     }
   }
 
+  object PostinngOps {
+    implicit class PostingExtensions(p: Posting) {
+      def hasAmount: Boolean = !isMissingMixedAmount(p.amount)
+
+      def hasBalanceAssignment: Boolean = {
+        !p.hasAmount
+      }
+    }
+  }
   def nullsourcepos = ((1, 1), (2, 1))
 
   def nullposting: Posting = {
@@ -47,14 +57,26 @@ object Postings {
       date2 = None,
       status = Unmarked,
       account = "",
-      amount = nullmixedamout,
+      amount = nullMixedAmount,
       comment = "",
+      original = None,
       //      balanceAssertion = None,
       transaction = None)
   }
 
   def posting: Posting = nullposting
 
+  def sumPostings(postings: List[Posting]): MixedAmount =
+    Monoid[MixedAmount].combineAll(postings.map(_.amount))
+  
+  def accountNamesFromPostings(postings: List[Posting]): List[AccountName] = {
+    postings.map(_.account).distinct
+  }
+
+  def originalPosting(posting: Posting): Posting = {
+    posting.original.getOrElse(posting)
+  }
+  
   def showPosting(posting: Posting): String = {
     postingsAsLines(onelineamounts = false, List(posting)).mkString("", "\n", "\n")
   }
@@ -138,4 +160,6 @@ object Postings {
 
   def commentSpace(t: String): String = "  " + t
 
+  def postingApplyCommodityStyles(styles: Map[CommoditySymbol, AmountStyle], posting: Posting): Posting =
+    posting.copy(amount = styledMixedAmount(styles, posting.amount))
 }

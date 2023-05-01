@@ -23,7 +23,7 @@ object Main extends IOApp.Simple {
       f <- bracketRead
       ef <- JournalReader.readJournal[IO].apply("file", f).value
       result <- ef match {
-        case Left(error) => IO.raiseError(JournalReader.ParseError(s"Error: ${error.parseError}"))
+        case Left(error) => IO.raiseError(JournalReader.ParseError(s"Error: ${error}"))
         case Right(journal) => IO.println(journal)
       }
     } yield result).handleErrorWith { error =>

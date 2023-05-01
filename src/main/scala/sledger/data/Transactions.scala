@@ -8,6 +8,7 @@ import java.time.LocalDate
 import sledger.Types._
 import sledger.data.Dates.nulldate
 import sledger.data.Postings.{Posting, nullsourcepos, posting, postingsAsLines, renderCommentLines}
+import sledger.data.Postings.PostinngOps._
 
 object Transactions {
   case class Transaction(
@@ -70,4 +71,12 @@ object Transactions {
     val code = if(t.code.isEmpty) "" else t.code.mkString(" (", "", ")")
     List(date, status, code).mkString
   }
+  
+  def transactionMapPostings(f: Posting => Posting, transaction: Transaction): Transaction = {
+    transaction.copy(postings = transaction.postings.map(f))
+  }
+  
+  def assigmentPostings(transaction: Transaction) = {
+    transaction.postings.filter(p => p.hasBalanceAssignment)
+  } 
 }

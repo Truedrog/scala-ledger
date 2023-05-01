@@ -98,7 +98,6 @@ object Amounts {
                      commodity: CommoditySymbol, // commodity symbol, or special value "AUTO"
                      quantity: BigDecimal, // numeric quantity, or zero in case of "AUTO"
                      style: AmountStyle,
-//                     price: Option[AmountPrice] //-- the (fixed, transaction-specific) price for this amount, if any
                    )
 
   object Amount {
@@ -168,12 +167,8 @@ object Amounts {
   object Commodity {
     implicit val showCommodity: Show[Commodity] = derived.semiauto.show
   }
-
-
-
-  def nullamount: Amount = Amount(commodity = "", quantity = 0, style = amountstyle
-//    , price = None
-  )
+  
+  def nullamount: Amount = Amount(commodity = "", quantity = 0, style = amountstyle)
 
   def missingamt: Amount = nullamount.copy(commodity = "AUTO")
 
@@ -183,6 +178,13 @@ object Amounts {
   
   def transformAmount(f: BigDecimal => BigDecimal, amount: Amount): Amount = amount.copy(quantity = f(amount.quantity))
 
+  def styleAmount(styles: Map[CommoditySymbol, AmountStyle], amount: Amount): Amount = {
+    styles.get(amount.commodity) match {
+      case Some(s) => amount.copy(style = s)
+      case None => amount
+    }
+  }
+  
   def amountRoundedQuantity(amount: Amount): BigDecimal = {
     amount.style.precision match {
       case Precision(p) => amount.quantity.setScale(p, RoundingMode.HALF_EVEN)
@@ -190,7 +192,7 @@ object Amounts {
     }
   }
   
-  def testAmountAndTotalPrice(f: Amount => Boolean, amount: Amount): Boolean = {
+  def testAmount(f: Amount => Boolean, amount: Amount): Boolean = {
      f(amount) // todo test for price
   }
 
@@ -200,17 +202,17 @@ object Amounts {
       .intValue())
     val looksZero = (amt: Amount) => amt.style.precision match {
       case Precision(d) => if (e > d) {
-        q.abs <= (5 * 10 ^ (e - d.toInt - 1))
+        q.abs <= (5 * 10 ^ (e - d - 1))
       } else {
         q == 0
       }
       case NaturalPrecision => q == 0
     }
-    testAmountAndTotalPrice(looksZero, amount)
+    testAmount(looksZero, amount)
   }
   
   def amountIsZero(amount: Amount): Boolean = {
-    testAmountAndTotalPrice(amt => amt.quantity.equals(BigDecimal(0)), amount)
+    testAmount(amt => amt.quantity.equals(BigDecimal(0)), amount)
   }
 
   def isNegativeAmount(amount: Amount): Boolean = amount.quantity < 0
@@ -270,27 +272,45 @@ object Amounts {
     implicit val orderMixedAmount: Order[MixedAmount] = (x: MixedAmount, y: MixedAmount) => maCompare(x, y).toInt
     implicit val semigroupMixedAmount: Semigroup[MixedAmount] = (x: MixedAmount, y: MixedAmount) => maPlus(x, y)
     implicit val monoidMixedAmount: Monoid[MixedAmount] = new Monoid[MixedAmount] {
-      override def empty: MixedAmount = nullmixedamout
+      override def empty: MixedAmount = nullMixedAmount
 
       override def combine(x: MixedAmount, y: MixedAmount): MixedAmount = maPlus(x, y)
     }
   }
 
   def amountKey(amount: Amount): MixedAmountKeyNoPrice = MixedAmountKeyNoPrice(amount.commodity) 
-  def mixed(amounts: List[Amount]): MixedAmount = amounts.foldLeft(nullmixedamout)(maAddAmount)
+  
+  def mixed(amounts: List[Amount]): MixedAmount = amounts.foldLeft(nullMixedAmount)(maAddAmount)
+  
   def isMissingMixedAmount(ma: MixedAmount): Boolean = ma.mixed.contains(amountKey(missingamt))
-  def nullmixedamout: MixedAmount = MixedAmount(mixed = Map.empty)
-  def missingmixedamt: MixedAmount = mixedAmount(missingamt)
+  
+  def nullMixedAmount: MixedAmount = MixedAmount(mixed = Map.empty)
+  
+  def missingMixedAmt: MixedAmount = mixedAmount(missingamt)
+  
   def mixedAmount(amount: Amount): MixedAmount = MixedAmount(Map(amountKey(amount) -> amount))
+  
   def usd(n: BigDecimal) = nullamount.copy(commodity="$", quantity=n.setScale(2), style=amountstyle.copy(precision = Precision(2)))
+  
   def maAddAmount(ma: MixedAmount, a: Amount): MixedAmount = MixedAmount(ma.mixed.updated(amountKey(a), a))  //todo price handling
  
   def mapMixedAmountUnsafe(f: Amount => Amount, mixedAmount: MixedAmount): MixedAmount =
-    MixedAmount(mixedAmount.mixed.map{ case (ma, a) => ma->f(a) })
+    MixedAmount(mixedAmount.mixed.map{ case (ma, a) => ma -> f(a) })
     
   def transformMixedAmount(f: BigDecimal => BigDecimal, mixedAmount: MixedAmount): MixedAmount =
     mapMixedAmountUnsafe(transformAmount(f, _), mixedAmount)
 
+  def mixedAmountLooksZero(mixedAmount: MixedAmount): Boolean = mixedAmount.mixed.values.toList.forall(amountLooksZero)
+  
+  def isNegativeMixedAmount(mixedAmount: MixedAmount): Some[Boolean] = {
+    amounts(mixedAmount) match {
+      case Nil => Some(false)
+      case List(a) => Some(isNegativeAmount(a))
+      case as if as.forall(isNegativeAmount) => Some(true)
+      case as if as.exists(isNegativeAmount) => Some(false)
+      case _ => None
+    }
+  }
   def maPlus(x: MixedAmount, y: MixedAmount): MixedAmount = {
     import Amount.amountNum._
     MixedAmount(x.mixed.foldLeft(y.mixed) {
@@ -305,7 +325,7 @@ object Amounts {
     maNegate(maPlus(x, y))
   
   def maSum(mas: List[MixedAmount]): MixedAmount =
-    mas.foldLeft(nullmixedamout)(maPlus)
+    mas.foldLeft(nullMixedAmount)(maPlus)
   
   def amounts(ma: MixedAmount): List[Amount] = {
     val (zeros, nonzeros) =  ma.mixed.partition(ma => amountIsZero(ma._2))
@@ -318,6 +338,14 @@ object Amounts {
       nonzeros.values.toList
     }
   }
+  
+  def styledMixedAmount(styles: Map[CommoditySymbol, AmountStyle], ma: MixedAmount): MixedAmount = {
+    mapMixedAmountUnsafe(amount => styleAmount(styles, amount), ma)
+  }
+  
+  def amountsRaw(mixedAmount: MixedAmount) = {
+    mixedAmount.mixed.values.toList
+  }
 
   def withPrecision(amount: Amount, precision: AmountPrecision): Amount =
     amount.copy(style = amount.style.copy(precision = precision))
@@ -329,9 +357,11 @@ object Amounts {
       if (showOpts.displayOrder.isDefined) Monoid[WideBuilder].empty else l |+| r
     }
     val (quantity, c) = {
-      
       val q =
-        showamountquantity(if (showOpts.displayThousandsSep) amount else amount.copy(style = amount.style.copy(digitgroups = None)))
+        showAmountQuantity(
+          if (showOpts.displayThousandsSep)
+            amount else
+            amount.copy(style = amount.style.copy(digitgroups = None)))
       if (amountLooksZero(amount) && showOpts.displayZeroCommodity) {
         (WideBuilder(new StringBuilder("0"), 1), "")
       } else {
@@ -373,7 +403,7 @@ object Amounts {
     }
   }
 
-  def showamountquantity(amount: Amount): WideBuilder = {
+  def showAmountQuantity(amount: Amount): WideBuilder = {
     val rounded = amountRoundedQuantity(amount)
     val (e, n) = (rounded.scale, rounded.underlying()
       .unscaledValue()
@@ -405,6 +435,19 @@ object Amounts {
     
   def nullAmountDisplay: AmountDisplay = AmountDisplay(Monoid[WideBuilder].empty, 0)
   
+  def styleMixedAmount(styles: Map[CommoditySymbol, AmountStyle], mixedAmount: MixedAmount): MixedAmount = {
+    mapMixedAmountUnsafe(a => styleAmount(styles, a), mixedAmount)
+  }
+  
+  def canonicaliseAmount(styles: Map[CommoditySymbol, AmountStyle], amount: Amount): Amount = {
+    val s = styles.getOrElse(amount.commodity, amount.style)
+    amount.copy(style = s)
+  }
+  
+  def canonicaliseMixedAmount(styles: Map[CommoditySymbol, AmountStyle], mixedAmount: MixedAmount): MixedAmount = {
+    mapMixedAmountUnsafe(a => canonicaliseAmount(styles, a), mixedAmount)
+  }
+  
   def showMixedAmount(ma: MixedAmount): String = {
     showMixedAmountB(noColour, ma).builder.result()
   }
@@ -415,6 +458,10 @@ object Amounts {
   
   def showMixedAmountWithZeroCommodity(ma: MixedAmount): String = {
     showMixedAmountB(noColour.copy(displayZeroCommodity = true), ma).builder.result()
+  }
+  
+  def showMixedAmountOneLineWithoutPrice(color: Boolean, ma: MixedAmount): String = {
+    showMixedAmountB(oneLine, ma).builder.result() // todo add color
   }
   
   def showMixedAmountB(maDisplayOpts: AmountDisplayOpts, ma: MixedAmount): WideBuilder = {
@@ -516,11 +563,14 @@ object Amounts {
     amounts.mapAccumulate(-sep)(display)._2
   }
   
+  def mixedAmountCost(ma: MixedAmount): MixedAmount = {
+    val (noPrices, withPrices) = ma.mixed.partition { case (_, amt) => true}//todo refactor
+    withPrices.foldLeft(MixedAmount(noPrices)) {case (m, (_, a)) =>  maAddAmount(m, a)}
+  }
+  
   def mixedAmountStripPrices(ma: MixedAmount): MixedAmount = {
     val (noPrices, withPrices) = ma.mixed.partition { case (_, amt) => true}//todo actual strip prices
-    withPrices.foldLeft(MixedAmount(noPrices)) { case (m, (_, a)) =>
-      maAddAmount(m, a) //todo actual strip prices
-    }
+    withPrices.foldLeft(MixedAmount(noPrices)) { case (m, (_, a)) => maAddAmount(m, a) }
   }
 
   def elisionDisplay(mmax: Option[Int], sep: Int, n: Int, lastAmt: AmountDisplay): Option[AmountDisplay] = {
