@@ -68,7 +68,7 @@ object Journals {
   
   private def journalPostings(journal: Journal): List[Posting] = journal.transactions.flatMap(_.postings)
 
-  private def journalAccountNamesUsed(journal: Journal): List[AccountName] =
+  def journalAccountNamesUsed(journal: Journal): List[AccountName] =
     accountNamesFromPostings(journalPostings(journal))
 
   private def journalAccountNames(journal: Journal): List[AccountName] =
