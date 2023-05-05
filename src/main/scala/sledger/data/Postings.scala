@@ -1,12 +1,9 @@
 package sledger.data
 
-import cats._
-import cats.data._
 import cats.syntax.all._
 import cats.{Group => _, _}
 import io.github.akiomik.seaw.implicits._
-import sledger.Types
-import sledger.Types.{Status, Unmarked}
+import sledger._
 import sledger.data.AccountNames.AccountName
 import sledger.data.Amounts._
 import sledger.data.Transactions.Transaction
@@ -114,20 +111,27 @@ object Postings {
   }
 
   def postingsAsLines(onelineamounts: Boolean, ps: List[Posting]): List[String] = {
-    ps.map { p =>
+   val xs = ps.map { p =>
       postingAsLines(elideamount = false,
         onelineamounts = onelineamounts
+      )(p)
+    }
+    val accw = maximumBound(0)(xs.map(_._2))
+    val amtw = maximumBound(0)(xs.map(_._3))
+    ps.map { p =>
+      postingAsLines(elideamount = false,
+        onelineamounts = onelineamounts, accw, amtw
       )(p)
     }.flatMap(_._1)
   }
 
   def postingAsLines(elideamount: Boolean,
                      onelineamounts: Boolean,
-                     acctwidth: Int = 2,
+                       acctwidth: Int = 2,
                      amtwidth: Int = 12)(p: Posting): (List[String], Int, Int) = {
     val pacctstr: Posting => String = p => showAccountName(None, p.account)
     val pstatusprefix: Posting => String = p => p.status match {
-      case Types.Unmarked => ""
+      case Unmarked => ""
       case s => s.toString + " "
     }
     val pstatusandacct: Posting => String =

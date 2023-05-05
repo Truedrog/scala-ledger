@@ -3,7 +3,7 @@ package sledger.text
 import cats._
 import cats.syntax.all._
 import io.github.akiomik.seaw.implicits._
-import sledger.Types._
+import sledger._
 object WideString {
   
   case class WideBuilder(builder: StringBuilder, width: Int)

@@ -1,11 +1,10 @@
-package sledger
 import cats._
-import cats.data._
-import cats.syntax.all._
-import sledger.data.Amounts.{Amount, MixedAmount}
+import sledger.data.Amounts.Amount
 
-package object Types {
+package object sledger {
 
+  type SourcePos = (Int, Int)
+  
   val isDecimalMark: Char => Boolean = {
     case '.' => true
     case ',' => true

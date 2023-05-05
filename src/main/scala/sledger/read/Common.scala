@@ -15,7 +15,7 @@ import parsley.cats.instances._
 import java.time.LocalDate
 import scala.util.Try
 import scala.Function.const
-import sledger.Types.{Cleared, Pending, Status, Unmarked, isDecimalMark}
+import sledger._
 import sledger.data.AccountNames.AccountName
 import sledger.data.Amounts._
 import sledger.data.Dates._

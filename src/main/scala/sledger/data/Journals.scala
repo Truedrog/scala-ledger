@@ -1,9 +1,8 @@
 package sledger.data
 
 import cats._
-import cats.syntax.all._
-import sledger.data.AccountNames.{AccountName, AccountType, accountNameInferType, accountNameTreeFrom, expandAccountNames}
-import sledger.data.Amounts.{Amount, AmountPrecision, AmountStyle, CommoditySymbol, DigitGroupStyle, amountsRaw}
+import sledger.data.AccountNames._
+import sledger.data.Amounts._
 import sledger.data.Postings.{Posting, accountNamesFromPostings, postingApplyCommodityStyles}
 import sledger.data.Transactions.{Transaction, transactionMapPostings}
 import sledger.utils.RoseTree._

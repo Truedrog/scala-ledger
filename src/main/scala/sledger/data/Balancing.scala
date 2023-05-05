@@ -8,7 +8,8 @@ import sledger.data.Journals.JournalOps._
 import sledger.data.Journals.{Journal, journalCommodityStyles}
 import sledger.data.Postings.PostinngOps._
 import sledger.data.Postings.{Posting, originalPosting, sumPostings}
-import sledger.data.Transactions.{Transaction, txnTieKnot}
+import sledger.data.Transactions.{Transaction, showTransaction, txnTieKnot}
+import sledger.utils.Parse.sourcePosPretty
 
 object Balancing {
   case class BalancingOptions(commodityStyles: Option[Map[CommoditySymbol, AmountStyle]])
@@ -29,20 +30,20 @@ object Balancing {
   }
 
   def balanceTransactionHelper(balancingOptions: BalancingOptions,
-                               transaction: Transaction): Either[String, (Transaction, List[(AccountName, MixedAmount)])] = {
+                               t: Transaction): Either[String, (Transaction, List[(AccountName, MixedAmount)])] = {
     for {
-      (t, inferredamtsandaccts) <- transactionInferBalancingAmount(balancingOptions.commodityStyles.getOrElse(Map.empty), transaction)
+      (t, inferredamtsandaccts) <- transactionInferBalancingAmount(balancingOptions.commodityStyles.getOrElse(Map.empty), t)
       result <- transactionCheckBalanced(balancingOptions, t) match {
         case Nil => Right((txnTieKnot(t), inferredamtsandaccts))
         case errs =>
-          Left(transactionBalanceError(errs ++ List("Consider adjusting this entry's amounts, or adding missing postings.")))
+          Left(transactionBalanceError(t, errs ++ List("Consider adjusting this entry's amounts, or adding missing postings.")))
       }
     } yield result
   }
 
   def transactionInferBalancingAmount(styles: Map[CommoditySymbol, AmountStyle],
-                                      transaction: Transaction): Either[String, (Transaction, List[(AccountName, MixedAmount)])] = {
-    val (amountfullPostings, amountlessPostings) = transaction.postings.partition(_.hasAmount)
+                                      t: Transaction): Either[String, (Transaction, List[(AccountName, MixedAmount)])] = {
+    val (amountfullPostings, amountlessPostings) = t.postings.partition(_.hasAmount)
     val realSum = sumPostings(amountfullPostings)
 
     def inferamount(p: Posting): (Posting, Option[MixedAmount]) = {
@@ -56,9 +57,9 @@ object Balancing {
     }
 
     if (amountlessPostings.length > 1) {
-      Left(transactionBalanceError(List("This transaction is unbalanced. There can't be more than one real posting with no amount.")))
+      Left(transactionBalanceError(t, List("There can't be more than one real posting with no amount.")))
     } else {
-      val postingsAndInferredAmounts = transaction.postings.map(inferamount)
+      val postingsAndInferredAmounts = t.postings.map(inferamount)
       val infereredAccountsAndAmounts = postingsAndInferredAmounts
         .foldLeft(List.empty[(AccountName, MixedAmount)]) { case (acc, (p, mb)) =>
           mb match {
@@ -66,7 +67,7 @@ object Balancing {
             case None => acc
           }
         }
-      Right((transaction.copy(postings = postingsAndInferredAmounts.map(_._1)), infereredAccountsAndAmounts))
+      Right((t.copy(postings = postingsAndInferredAmounts.map(_._1)), infereredAccountsAndAmounts))
     }
   }
 
@@ -87,14 +88,37 @@ object Balancing {
     val rsumcost = Foldable[List].foldMap(rps)(postingBalancingAmount)
     val rsumdisplay = canonicalise(rsumcost)
     val rsumok = mixedAmountLooksZero(rsumdisplay)
-    val errs = if (rsumok) "" else if (!rsignsok) "The real postings all have the same sign. \nConsider negating some of them."
-    else s"The real postings sum should be 0 but is: ${showMixedAmountOneLineWithoutPrice(false, rsumcost)}\n"
+    val errs = if (rsumok) "" else if (!rsignsok) "The real postings all have the same sign. Consider negating some of them."
+    else s"The real postings sum should be 0 but is: ${showMixedAmountOneLineWithoutPrice(false, rsumcost)}"
     List(errs).filter(_.nonEmpty)
   }
 
-  def transactionBalanceError(errs: List[String]): String = {
-    val s = errs.mkString
-    f"This transaction is unbalanced ${s}%s\n"
+  def transactionBalanceError(t: Transaction, errs: List[String]): String = {
+    val s = errs.mkString("", "\n", "\n")
+    val (_, _, ex) = makeTransactionErrorExcerpt(t, _ => None)
+    f"${sourcePosPretty(t.sourcepos)}%s\n${ex}%s\n\nThis transaction is unbalanced.\n${s}%s"
+  }
+  
+  def makeTransactionErrorExcerpt(t: Transaction, f: Transaction => Option[(Int, Option[Int])]): (Int, Option[(Int, Option[Int])], String) = {
+    val (tpos, _) = t.sourcepos._1
+    val txntxt = showTransaction(t).stripMargin + "\n"
+    val merrcols = f(t)
+    val ex = decorateError(tpos, merrcols, txntxt)
+    (tpos, merrcols, ex)
+  }
+  
+  def decorateError(l: Int, mcols: Option[(Int, Option[Int])], txt: String) = {
+    val (ls, ms) = txt.split('\n').toList.splitAt(1)
+    val lsPrime = ls map (line => s"$l | $line")
+    val lineprefix = " " * (l.toString.length + 1) + "| "
+    val colmarkerline = mcols.toList.flatMap {
+      case (col, Some(endCol)) =>
+        val regionw = endCol - col + 1
+        List(s"${lineprefix}${" " * (col - 1)}${"^" * regionw}")
+      case (col, None) =>
+        List(s"${lineprefix}${" " * (col - 1)}^")
+    }
+    (lsPrime ++ colmarkerline ++ ms.map(lineprefix + _)).mkString("\n")
   }
 
   def isTransactionBalanced(bopts: BalancingOptions, transaction: Transaction): Boolean =

@@ -1,21 +1,18 @@
 package sledger.data
 
 import cats._
-import cats.data._
 import cats.syntax.all._
-import sledger.Types
+import sledger._
+import sledger.data.Dates.nulldate
+import sledger.data.Postings.{Posting, nullsourcepos, postingsAsLines, renderCommentLines}
 
 import java.time.LocalDate
-import sledger.Types._
-import sledger.data.Dates.nulldate
-import sledger.data.Postings.{Posting, nullsourcepos, posting, postingsAsLines, renderCommentLines}
-import sledger.data.Postings.PostinngOps._
 
 object Transactions {
   case class Transaction(
                           index: Int,
                           precedingcomment: String,
-                          sourcepos: ((Int, Int), (Int, Int)),
+                          sourcepos: (SourcePos, SourcePos),
                           date: LocalDate,
                           date2: Option[LocalDate],
                           status: Status,
@@ -68,7 +65,7 @@ object Transactions {
         case Nil => ("", List())
         case c :: cs => (c, cs)
       }
-    val newline = new StringBuilder("\\\\n")  
+    val newline = new StringBuilder("\n")  
     val descriptionline = showTransactionLineFirstPart(t).stripTrailing() + List(desc, samelinecomment).mkString
     new StringBuilder(descriptionline)
       .combine(newline)
@@ -80,8 +77,8 @@ object Transactions {
   def showTransactionLineFirstPart(t: Transaction) = {
     val date = t.date.toString + t.date2.fold("") {"=" + _.toString }
     val status = t.status match {
-      case Types.Pending => " !"
-      case Types.Cleared => " *"
+      case Pending => " !"
+      case Cleared => " *"
       case _             => ""
     }
     val code = if(t.code.isEmpty) "" else t.code.mkString(" (", "", ")")

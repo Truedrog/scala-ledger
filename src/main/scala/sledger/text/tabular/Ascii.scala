@@ -6,7 +6,7 @@ import cats.syntax.all._
 
 import sledger.text.WideString._
 import sledger.text.tabular.Tabular._
-import sledger.Types._
+import sledger._
 object Ascii {
   
   case class TableOpts(prettyTable: Boolean = false, tableBorders: Boolean = true, borderSpaces: Boolean = true)
