@@ -1,7 +1,8 @@
 package sledger.data
 
-import cats.{Foldable, Show, derived}
-import cats.syntax.monoid._
+import cats._
+import cats.data._
+import cats.syntax.all._
 import sledger.Types
 
 import java.time.LocalDate
@@ -23,6 +24,16 @@ object Transactions {
                           comment: String,
                           postings: List[Posting]
                         )
+  implicit val eqTransaction: Eq[Transaction] = (x: Transaction, y: Transaction) => {
+    x.index === x.index && 
+      x.precedingcomment === y.precedingcomment && 
+      x.sourcepos === y.sourcepos && 
+      x.date.equals(y.date) &&
+      x.status == y.status &&
+      x.code === y.code &&
+      x.comment == y.comment &&
+     x.postings === y.postings
+  } 
   implicit val showTransaction: Show[Transaction] =
     Show.show(t => s"Transaction {index=${t.index}, date=${t.date}, date2=${t.date2}, status=${t.status}, description=${t.description}, comment=${t.comment}, " +
       s"postings=${t.postings.toString}, precedingcomment=${t.precedingcomment}}".stripMargin)
