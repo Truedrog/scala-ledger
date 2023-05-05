@@ -1,19 +1,22 @@
 package sledger.data
 
-import java.time.DayOfWeek
-import cats.{Group => _, _}
+import cats._
+import cats.data._
 import cats.syntax.all._
+import cats.{Group => _, _}
 import io.github.akiomik.seaw.implicits._
-import sledger.data.Amounts.{AmountStyle, CommoditySymbol, MixedAmount, amountKey, isMissingMixedAmount, noColour, nullMixedAmount, showMixedAmountLinesB, styledMixedAmount}
-import sledger.data.AccountNames.AccountName
-import sledger.data.Transactions.Transaction
-import sledger.text.tabular.Ascii._
-import sledger.text.tabular.Tabular.{Group, Header, NoLine}
-import sledger.text.WideString.WideBuilder
 import sledger.Types
 import sledger.Types.{Status, Unmarked}
+import sledger.data.AccountNames.AccountName
+import sledger.data.Amounts._
+import sledger.data.Transactions.Transaction
+import sledger.text.WideString.WideBuilder
+import sledger.text.tabular.Ascii._
+import sledger.text.tabular.Tabular.{Group, Header, NoLine}
 import sledger.utils.Text.fitText
 import sledger.utils.maximumBound
+
+import java.time.{DayOfWeek, LocalDate}
 
 object Postings {
   case class Posting(
@@ -22,11 +25,25 @@ object Postings {
                       status: Status,
                       account: AccountName,
                       amount: MixedAmount,
-                      original: Option[Posting],
                       comment: String,
+                      original: Option[Posting],
                       //                      balanceAssertion: Option[BalanceAssertion],
                       transaction: Option[Transaction]
-                    )
+                    ) {
+    override def equals(o: Any): Boolean = { // for tests
+
+      o match {
+        case other@Posting(_, _, _, _, _, _, _, _) =>
+          this.date1 == other.date1 &&
+            this.date2 == other.date2 &&
+            this.status == other.status &&
+            this.account == other.account &&
+            this.amount == other.amount &&
+            this.comment == other.comment
+        case _ => false
+      }
+    }
+  }
 
   object Posting {
     implicit val showPosting: Show[Posting] = Show[Posting] { posting =>
@@ -39,6 +56,9 @@ object Postings {
         show"comment = ${posting.comment}" +
         s"transaction = txn"
     }
+    implicit val eqPosting: Eq[Posting] = (x: Posting, y: Posting) => {
+      x.account === y.account && x.amount === y.amount && x.date1 == y.date1 && x.date2 == y.date2 && x.status == y.status
+    }
   }
 
   object PostinngOps {
@@ -50,6 +70,7 @@ object Postings {
       }
     }
   }
+
   def nullsourcepos = ((1, 1), (2, 1))
 
   def nullposting: Posting = {
@@ -66,9 +87,16 @@ object Postings {
 
   def posting: Posting = nullposting
 
+  def postinDate(posting: Posting): DayOfWeek = {
+    val dates = List(posting.date1, posting.transaction.map(_.date.getDayOfWeek))
+    Alternative[Option].combineAllK(dates).getOrElse(LocalDate.of(0, 0, 0).getDayOfWeek)
+  }
+
+  def post(acc: AccountName, amt: Amount): Posting = posting.copy(amount = mixedAmount(amt), account = acc)
+
   def sumPostings(postings: List[Posting]): MixedAmount =
     Monoid[MixedAmount].combineAll(postings.map(_.amount))
-  
+
   def accountNamesFromPostings(postings: List[Posting]): List[AccountName] = {
     postings.map(_.account).distinct
   }
@@ -76,7 +104,7 @@ object Postings {
   def originalPosting(posting: Posting): Posting = {
     posting.original.getOrElse(posting)
   }
-  
+
   def showPosting(posting: Posting): String = {
     postingsAsLines(onelineamounts = false, List(posting)).mkString("", "\n", "\n")
   }
