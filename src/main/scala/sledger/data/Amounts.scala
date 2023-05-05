@@ -171,6 +171,8 @@ object Amounts {
   def nullamount: Amount = Amount(commodity = "", quantity = 0, style = amountstyle)
 
   def missingamt: Amount = nullamount.copy(commodity = "AUTO")
+  def num(n: BigDecimal): Amount = nullamount.copy(commodity = "", quantity = n)
+  def usd(n: BigDecimal): Amount = nullamount.copy(commodity="$", quantity=n.setScale(2), style=amountstyle.copy(precision = Precision(2)))
 
   def amountWithCommodity(cSymbol: CommoditySymbol, amount: Amount): Amount = {
     amount.copy(commodity = cSymbol)
@@ -290,7 +292,6 @@ object Amounts {
   
   def mixedAmount(amount: Amount): MixedAmount = MixedAmount(Map(amountKey(amount) -> amount))
   
-  def usd(n: BigDecimal) = nullamount.copy(commodity="$", quantity=n.setScale(2), style=amountstyle.copy(precision = Precision(2)))
   
   def maAddAmount(ma: MixedAmount, a: Amount): MixedAmount = MixedAmount(ma.mixed.updated(amountKey(a), a))  //todo price handling
  

@@ -49,6 +49,11 @@ object Transactions {
     postings = List(),
     precedingcomment = ""
   )
+  
+  def transaction(date: LocalDate, ps: List[Posting]): Transaction = {
+    txnTieKnot(nulltransaction.copy(date = date, postings = ps))   
+  }
+  
   def txnTieKnot(transaction: Transaction): Transaction = {
     transaction.copy(postings = transaction.postings.map(p => postingSetTransaction(transaction,p)))
   }
@@ -87,7 +92,4 @@ object Transactions {
     transaction.copy(postings = transaction.postings.map(f))
   }
   
-  def assigmentPostings(transaction: Transaction) = {
-    transaction.postings.filter(p => p.hasBalanceAssignment)
-  } 
 }

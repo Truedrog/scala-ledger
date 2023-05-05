@@ -65,9 +65,9 @@ object Postings {
     implicit class PostingExtensions(p: Posting) {
       def hasAmount: Boolean = !isMissingMixedAmount(p.amount)
 
-      def hasBalanceAssignment: Boolean = {
-        !p.hasAmount
-      }
+//      def hasBalanceAssignment: Boolean = {
+//        !p.hasAmount
+//      }
     }
   }
 

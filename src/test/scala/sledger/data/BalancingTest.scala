@@ -1,20 +1,29 @@
 package sledger.data
 
 import munit.CatsEffectSuite
+import cats._
+import cats.data._
+import cats.syntax.all._
 import sledger.Types.Unmarked
-import sledger.data.Balancing.{balanceTransaction, defBalancingOptions, isTransactionBalanced, transactionInferBalancingAmount}
+import sledger.data.Balancing.{balanceTransaction, defBalancingOptions, isTransactionBalanced, journalBalanceTransactions, transactionInferBalancingAmount}
 import sledger.data.Transactions._
 import sledger.data.Amounts._
+import sledger.data.Journals.nulljournal
 import sledger.data.Postings.{nullsourcepos, post, posting}
 
 import java.time.LocalDate
 
 class BalancingTest extends CatsEffectSuite {
+  def assertRight[A](either: Either[String, A]) = {
+    either match {
+      case Left(value) => fail(value)
+      case Right(_) => true
+    }
+  }
   test("transactionInferBalancingAmount") {
     var actual = transactionInferBalancingAmount(Map.empty, nulltransaction).map(a => a._1)
     var expected = Right(nulltransaction)
     assertEquals(actual, expected)
-    
     expected = Right(nulltransaction.copy(postings = List(
       post("a", usd(-5)),
       post("b", usd(5))
@@ -71,8 +80,8 @@ class BalancingTest extends CatsEffectSuite {
       )
     )
     assert(clue(assertLeft.isLeft), "detect unbalanced entry, multiple missing amounts")
-    
-    var actual = balanceTransaction(defBalancingOptions,
+
+    val actual = balanceTransaction(defBalancingOptions,
       Transaction(
         0,
         "",
@@ -89,7 +98,7 @@ class BalancingTest extends CatsEffectSuite {
         )
       )
     ).map(_.postings.last.amount)
-    var expected = Right(mixedAmount(usd(-1)))
+    val expected = Right(mixedAmount(usd(-1)))
     println(actual)
     assertEquals(actual, expected)
   }
@@ -149,5 +158,19 @@ class BalancingTest extends CatsEffectSuite {
       )
     )
     assert(unbalanced, "detect unbalanced, one posting")
+  }
+  
+  test("journalBalanceTransactions") {
+    val sample = nulljournal.copy(transactions =
+      List(txnTieKnot(
+        Transaction(1, "", nullsourcepos, LocalDate.of(2023, 1, 1), None, Unmarked, "", "income", "",
+          List(post("assets:bank:check", usd(1)),
+            post("income:salary", missingamt)
+          )
+        )
+      )))
+    
+    val ej = journalBalanceTransactions(defBalancingOptions, sample)
+    assertRight(ej)
   }
 }
