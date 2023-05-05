@@ -302,7 +302,7 @@ object Amounts {
 
   def mixedAmountLooksZero(mixedAmount: MixedAmount): Boolean = mixedAmount.mixed.values.toList.forall(amountLooksZero)
   
-  def isNegativeMixedAmount(mixedAmount: MixedAmount): Some[Boolean] = {
+  def isNegativeMixedAmount(mixedAmount: MixedAmount): Option[Boolean] = {
     amounts(mixedAmount) match {
       case Nil => Some(false)
       case List(a) => Some(isNegativeAmount(a))
@@ -321,8 +321,8 @@ object Amounts {
   def maNegate(x: MixedAmount): MixedAmount =
     transformMixedAmount(Numeric[BigDecimal].negate, x)
   
-  def maMinus(x: MixedAmount, y: MixedAmount): MixedAmount =
-    maNegate(maPlus(x, y))
+  def maMinus(a: MixedAmount, b: MixedAmount): MixedAmount =
+    maPlus(a, maNegate(b)) 
   
   def maSum(mas: List[MixedAmount]): MixedAmount =
     mas.foldLeft(nullMixedAmount)(maPlus)
