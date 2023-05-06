@@ -17,7 +17,8 @@ object Text {
           else 
             ellipsis + textTakeWidth(w - ellipsis.length, s.reverse).reverse
         }
-          case None => s
+        case Some(_) => s
+        case None    => s
       }
     }
     val pad: String => String = s => {

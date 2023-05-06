@@ -3,6 +3,7 @@ package sledger.data
 import cats._
 import sledger.data.AccountNames._
 import sledger.data.Amounts._
+import sledger.data.Balancing.{defBalancingOptions, journalBalanceTransactions}
 import sledger.data.Postings.{Posting, accountNamesFromPostings, postingApplyCommodityStyles}
 import sledger.data.Transactions.{Transaction, transactionMapPostings}
 import sledger.utils.RoseTree._
@@ -45,7 +46,9 @@ object Journals {
       def addTransaction(transaction: Transaction): Journal = j.copy(transactions = transaction :: j.transactions)
       def numberTransactions: Journal = j.copy(transactions = j.transactions
         .zipWithIndex
-        .map{case (t, i) => t.copy(index = i+1)}) 
+        .map{case (t, i) => t.copy(index = i+1)})
+
+      def balanceTransactions: Either[String, Journal] = journalBalanceTransactions(defBalancingOptions, j)
     }
   }
 
@@ -89,7 +92,12 @@ object Journals {
     }
 
     val t1 = setTypes(None, accountNameTreeFrom(journalAccountNames(journal)))
-    (for {(a, Some((acctType, _))) <- flatten(t1)} yield (a, acctType)).toMap
+    flatten(t1).flatMap {  
+      case (a, mac) => mac match {
+        case Some((accountType, _)) => List((a, accountType))
+        case None => List()
+      }
+    }.toMap
   }
 
   private def journalDeclaredAccountTypes(journal: Journal): Map[AccountName, AccountType] = {

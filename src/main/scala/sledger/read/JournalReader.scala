@@ -28,7 +28,7 @@ object JournalReader {
   val postingp: Parsley[Posting] = {
     (skipNonNewlineSpaces1,
       skipNonNewlineSpaces,
-      accountnamep.debug("account name"),
+      accountnamep,
       skipNonNewlineSpaces,
       option(amountp),
       skipNonNewlineSpaces,
@@ -41,7 +41,7 @@ object JournalReader {
         //        balanceAssertion = massertion,
         comment = comment)
     }
-  }.debug("posting")
+  }
 
   val postingsp: Parsley[List[Posting]] = {
     many(postingp.label("postings")) // todo add year postings 
@@ -91,12 +91,13 @@ object JournalReader {
     val t = Sync[F].delay(LocalDateTime.now())
     for {
       time <- EitherT.liftF(t)
-      up <- EitherT (Sync[F].delay{
+      up <- EitherT(Sync[F].delay {
         pj.withLastReadTime(time)
           .withFile(file, content)
           .reverse
           .withAccountTypes
           .applyCommodityStyles
+          .flatMap(_.balanceTransactions)
       })
     } yield up
   }
