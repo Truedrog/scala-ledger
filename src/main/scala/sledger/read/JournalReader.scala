@@ -91,7 +91,7 @@ object JournalReader {
     val t = Sync[F].delay(LocalDateTime.now())
     for {
       time <- EitherT.liftF(t)
-      up <- EitherT(Sync[F].delay {
+      j <- EitherT(Sync[F].delay {
         pj.withLastReadTime(time)
           .withFile(file, content)
           .reverse
@@ -99,7 +99,7 @@ object JournalReader {
           .applyCommodityStyles
           .flatMap(_.balanceTransactions)
       })
-    } yield up
+    } yield j
   }
   
   def initialiseAndParseJournal[F[_] : Sync](r: Reg[Journal])

@@ -17,8 +17,8 @@ import java.time.{DayOfWeek, LocalDate}
 
 object Postings {
   case class Posting(
-                      date1: Option[DayOfWeek],
-                      date2: Option[DayOfWeek],
+                      date1: Option[LocalDate],
+                      date2: Option[LocalDate],
                       status: Status,
                       account: AccountName,
                       amount: MixedAmount,
@@ -84,9 +84,9 @@ object Postings {
 
   def posting: Posting = nullposting
 
-  def postinDate(posting: Posting): DayOfWeek = {
-    val dates = List(posting.date1, posting.transaction.map(_.date.getDayOfWeek))
-    Alternative[Option].combineAllK(dates).getOrElse(LocalDate.of(0, 0, 0).getDayOfWeek)
+  def postinDate(posting: Posting): LocalDate = {
+    val dates = List(posting.date1, posting.transaction.map(_.date))
+    Alternative[Option].combineAllK(dates).getOrElse(LocalDate.of(0, 0, 0))
   }
 
   def post(acc: AccountName, amt: Amount): Posting = posting.copy(amount = mixedAmount(amt), account = acc)

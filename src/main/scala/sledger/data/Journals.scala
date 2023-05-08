@@ -1,14 +1,16 @@
 package sledger.data
 
 import cats._
+import cats.syntax.all._
 import sledger.data.AccountNames._
 import sledger.data.Amounts._
 import sledger.data.Balancing.{defBalancingOptions, journalBalanceTransactions}
+import sledger.data.Dates.{DateSpan, Exact, PrimaryDate, SecondaryDate, WhichDate}
 import sledger.data.Postings.{Posting, accountNamesFromPostings, postingApplyCommodityStyles}
 import sledger.data.Transactions.{Transaction, transactionMapPostings}
 import sledger.utils.RoseTree._
 
-import java.time.{LocalDateTime, Year}
+import java.time.{DayOfWeek, LocalDate, LocalDateTime, Year}
 
 object Journals {
 
@@ -166,4 +168,32 @@ object Journals {
 //    globalCommodityStyles = Map.empty
     //    finalcommentlines = ""
   )
+  
+  def journalDateSpan(primaryOrSecondary: Boolean, journal: Journal): DateSpan = if (primaryOrSecondary) {
+    journalDateSpanHelper(Some(PrimaryDate), journal)
+  } else {
+    journalDateSpanHelper(Some(SecondaryDate), journal)
+  }
+  
+  def journalDateSpanBoth(journal: Journal) = journalDateSpanHelper(None)
+  
+  def journalDateSpanHelper(mwd: Option[WhichDate], journal: Journal): DateSpan = {
+    def getpdate(posting: Posting) = mwd match {
+      case Some(PrimaryDate) => posting.date1.toList
+      case Some(SecondaryDate) => posting.date2.fold(posting.date1)(x => Some(x)).toList
+      case None => List(posting.date1, posting.date2).collect { case Some(x) => x }
+    }
+
+    def gettdate(transaction: Transaction): List[LocalDate] = mwd match {
+      case Some(PrimaryDate) => List(transaction.date)
+      case Some(SecondaryDate) => List(transaction.date2.getOrElse(transaction.date))
+      case None => transaction.date +: transaction.date2.toList
+    }
+    val txns  = journal.transactions
+    val tdates = txns.flatMap(gettdate)
+    val pdates = txns.flatMap(_.postings).flatMap(getpdate)
+    val dates = pdates ++ tdates
+    DateSpan(dates.minOption.map(Exact), dates.maxOption.map(_.plusDays(1)).map(Exact))
+  }
+  
 }
