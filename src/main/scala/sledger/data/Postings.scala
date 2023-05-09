@@ -6,6 +6,7 @@ import io.github.akiomik.seaw.implicits._
 import sledger._
 import sledger.data.AccountNames.AccountName
 import sledger.data.Amounts._
+import sledger.data.Dates.{PrimaryDate, SecondaryDate, WhichDate, nulldate}
 import sledger.data.Transactions.Transaction
 import sledger.text.WideString.WideBuilder
 import sledger.text.tabular.Ascii._
@@ -84,9 +85,21 @@ object Postings {
 
   def posting: Posting = nullposting
 
-  def postinDate(posting: Posting): LocalDate = {
+  def postingDate(posting: Posting): LocalDate = {
     val dates = List(posting.date1, posting.transaction.map(_.date))
-    Alternative[Option].combineAllK(dates).getOrElse(LocalDate.of(0, 0, 0))
+    Alternative[Option].combineAllK(dates).getOrElse(nulldate)
+  }
+  
+  def postingDate2(posting: Posting): LocalDate = {
+    val dates = List(posting.date2, posting.transaction.flatMap(_.date2), posting.date1, posting.transaction.map(_.date))
+    Alternative[Option].combineAllK(dates).getOrElse(nulldate)
+  }
+  
+  def postingDateOrDate2(wd: WhichDate, posting: Posting): LocalDate = {
+    wd match {
+      case PrimaryDate => postingDate(posting)
+      case SecondaryDate => postingDate2(posting)
+    }
   }
 
   def post(acc: AccountName, amt: Amount): Posting = posting.copy(amount = mixedAmount(amt), account = acc)

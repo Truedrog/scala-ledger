@@ -18,9 +18,9 @@ case class FormatLiteral(text: String) extends StringFormatComponent
 case class FormatField(leftJustify: Boolean, minWidth: Option[Int], maxWidth: Option[Int], field: ReportItemField) extends StringFormatComponent
 object StringFormat {
   def defaultBalanceLineFormat: StringFormat = BottomAligned(List(
-    FormatField(false, Some(20), None, TotalField),
+    FormatField(leftJustify = false, Some(20), None, TotalField),
     FormatLiteral("  "),
-    FormatField(true, Some(2), None, DepthSpacerField),
-    FormatField(true, None, None, AccountField)
+    FormatField(leftJustify = true, Some(2), None, DepthSpacerField),
+    FormatField(leftJustify = true, None, None, AccountField)
   ))
 }

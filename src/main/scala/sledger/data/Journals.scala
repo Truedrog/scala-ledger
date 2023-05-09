@@ -1,16 +1,17 @@
 package sledger.data
 
 import cats._
-import cats.syntax.all._
+import sledger.Queries.{Query, matchesPostingExtra}
+import sledger.Unmarked
 import sledger.data.AccountNames._
 import sledger.data.Amounts._
 import sledger.data.Balancing.{defBalancingOptions, journalBalanceTransactions}
-import sledger.data.Dates.{DateSpan, Exact, PrimaryDate, SecondaryDate, WhichDate}
-import sledger.data.Postings.{Posting, accountNamesFromPostings, postingApplyCommodityStyles}
-import sledger.data.Transactions.{Transaction, transactionMapPostings}
+import sledger.data.Dates._
+import sledger.data.Postings._
+import sledger.data.Transactions.{Transaction, transactionMapPostings, txnTieKnot}
 import sledger.utils.RoseTree._
 
-import java.time.{DayOfWeek, LocalDate, LocalDateTime, Year}
+import java.time.{LocalDate, LocalDateTime, Year}
 
 object Journals {
 
@@ -70,7 +71,7 @@ object Journals {
     inferred
   }
   
-  private def journalPostings(journal: Journal): List[Posting] = journal.transactions.flatMap(_.postings)
+  def journalPostings(journal: Journal): List[Posting] = journal.transactions.flatMap(_.postings)
 
   def journalAccountNamesUsed(journal: Journal): List[AccountName] =
     accountNamesFromPostings(journalPostings(journal))
@@ -78,6 +79,9 @@ object Journals {
   private def journalAccountNames(journal: Journal): List[AccountName] =
     Foldable[List].foldMap(List(expandAccountNames(journalAccountNamesUsed(journal))))(a => a.distinct)
 
+  def journalAccountType(journal: Journal, an: AccountName): Option[AccountType] =
+    accountNameType(journalAccountTypes(journal), an) 
+    
   private def journalAccountTypes(journal: Journal): Map[AccountName, AccountType] = {
     def setTypes(mparenttype: Option[(AccountType, Boolean)], tree: Tree[AccountName]): Tree[(AccountName, Option[(AccountType, Boolean)])] = {
       tree match {
@@ -165,35 +169,124 @@ object Journals {
     declaredAccountTypes = Map.empty,
     accountTypes = Map.empty,
     inferredCommodities = Map.empty,
-//    globalCommodityStyles = Map.empty
-    //    finalcommentlines = ""
+//  globalCommodityStyles = Map.empty
+//  finalcommentlines = ""
   )
   
-  def journalDateSpan(primaryOrSecondary: Boolean, journal: Journal): DateSpan = if (primaryOrSecondary) {
+  def journalDateSpan(secondary: Boolean, journal: Journal): DateSpan = if (!secondary) {
     journalDateSpanHelper(Some(PrimaryDate), journal)
   } else {
     journalDateSpanHelper(Some(SecondaryDate), journal)
   }
   
-  def journalDateSpanBoth(journal: Journal) = journalDateSpanHelper(None)
+  def journalDateSpanBoth(journal: Journal) = journalDateSpanHelper(None, journal)
   
   def journalDateSpanHelper(mwd: Option[WhichDate], journal: Journal): DateSpan = {
-    def getpdate(posting: Posting) = mwd match {
-      case Some(PrimaryDate) => posting.date1.toList
-      case Some(SecondaryDate) => posting.date2.fold(posting.date1)(x => Some(x)).toList
-      case None => List(posting.date1, posting.date2).collect { case Some(x) => x }
+    def getpdate(p: Posting) = mwd match {
+      case Some(PrimaryDate) => p.date1.toList
+      case Some(SecondaryDate) => (p.date2 orElse p.date1).toList
+      case None => List(p.date1, p.date2).flatten
     }
 
-    def gettdate(transaction: Transaction): List[LocalDate] = mwd match {
-      case Some(PrimaryDate) => List(transaction.date)
-      case Some(SecondaryDate) => List(transaction.date2.getOrElse(transaction.date))
-      case None => transaction.date +: transaction.date2.toList
+    def gettdate(t: Transaction): List[LocalDate] = mwd match {
+      case Some(PrimaryDate) => List(t.date)
+      case Some(SecondaryDate) => List(t.date2.getOrElse(t.date))
+      case None => List(t.date) ++ t.date2.toList
     }
     val txns  = journal.transactions
     val tdates = txns.flatMap(gettdate)
     val pdates = txns.flatMap(_.postings).flatMap(getpdate)
     val dates = pdates ++ tdates
-    DateSpan(dates.minOption.map(Exact), dates.maxOption.map(_.plusDays(1)).map(Exact))
+    
+    DateSpan(dates.minOption.map(Exact), dates.maxOption.map(Exact))
+  }
+
+  def filterJournalPostings(query: Query, journal: Journal): Journal = {
+    journal.copy(transactions = journal.transactions
+      .map(t => filterTransactionPostingsExtra(journalAccountType(journal, _), query, t)))
   }
   
+  def filterTransactionPostingsExtra(atypes: AccountName => Option[AccountType],
+                                     query: Query, transaction: Transaction): Transaction = {
+    transaction.copy(
+      postings = transaction.postings.filter(p => matchesPostingExtra(atypes, query, p))
+    )
+  }
+
+  val sampleJournalIsExplicit: Boolean => Journal = explicit => nulljournal.copy(
+    transactions = List(
+      txnTieKnot {
+        Transaction(
+          index = 0,
+          comment = "",
+          sourcepos = nullsourcepos,
+          date = LocalDate.of(2023, 1, 1),
+          date2 = None,
+          status = Unmarked,
+          code = "",
+          description = "income",
+          precedingcomment = "",
+          postings = List(
+            post("assets:bank:checking", usd(1)),
+            post("income:salary", if(explicit) usd(-1) else missingamt)
+          )
+        )
+      },
+      txnTieKnot {
+        Transaction(
+          index = 0,
+          comment = "",
+          sourcepos = nullsourcepos,
+          date = LocalDate.of(2023, 6, 1),
+          date2 = None,
+          status = Unmarked,
+          code = "",
+          description = "gift",
+          precedingcomment = "",
+          postings = List(
+            post("assets:bank:checking", usd(1)),
+            post("income:gifts", if (explicit) usd(-1) else missingamt)
+          )
+        )
+      },
+      txnTieKnot {
+        Transaction(
+          index = 0,
+          comment = "",
+          sourcepos = nullsourcepos,
+          date = LocalDate.of(2023, 6, 2),
+          date2 = None,
+          status = Unmarked,
+          code = "",
+          description = "save",
+          precedingcomment = "",
+          postings = List(
+            post("assets:bank:saving", usd(1)),
+            post("assets:bank:checking", if (explicit) usd(-1) else missingamt)
+          )
+        )
+      },
+      txnTieKnot {
+        Transaction(
+          index = 0,
+          comment = "",
+          sourcepos = nullsourcepos,
+          date = LocalDate.of(2023, 6, 3),
+          date2 = None,
+          status = Unmarked,
+          code = "",
+          description = "eat & shop",
+          precedingcomment = "",
+          postings = List(
+            post("expenses:food", usd(1)),
+            post("expenses:supplies", usd(1)),
+            post("assets:cash", if (explicit) usd(-2) else missingamt)
+          )
+        )
+      },
+    )
+  )
+  
+  val sampleJournal: Journal = sampleJournalIsExplicit(true)
+ 
 }

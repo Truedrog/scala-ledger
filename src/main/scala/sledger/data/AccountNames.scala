@@ -3,6 +3,7 @@ import cats._
 import cats.data.NonEmptyList
 import cats.derived
 import cats.derived.auto
+import sledger.data.AccountNames.AccountName
 import sledger.utils.RoseTree._
 
 import scala.util.matching.Regex
@@ -80,6 +81,12 @@ object AccountNames {
     else if (expenseAccount.pattern.matcher(a).matches) Some(AccountType.Expense)
     else None
   }
+  
+  def accountNameType(atypes: Map[AccountName,AccountType], a: AccountName): Option[AccountType] = {
+    val anames = a+:parentAccountNames(a)
+    Alternative[Option].combineAllK(anames.map(an => atypes.get(an))).orElse(accountNameInferType(a))  
+  }
+  
   def isBalanceSheetAccountType(t: AccountType): Boolean = t match {
     case AccountType.Asset | AccountType.Liability | AccountType.Equity | AccountType.Cash | AccountType.Conversion => true
     case _ => false

@@ -7,6 +7,7 @@ import parsley.character.satisfy
 
 import java.time.temporal.TemporalAdjusters
 import java.time.{DayOfWeek, LocalDate, Month, MonthDay}
+import scala.annotation.tailrec
 
 object Dates {
   val isDateSepChar: Char => Boolean = {
@@ -195,6 +196,60 @@ object Dates {
       case (Flex(d1), Exact(d2)) => Some(if (d1.isAfter(d2) || d1.equals(d2)) x else y)
     }
     case _ => d1.orElse(d2)
+  }
+
+  def groupByDateSpan[A](showempty: Boolean,
+                         date: A => LocalDate,
+                         colspans: List[DateSpan],
+                         ps: List[A]): List[(DateSpan, List[A])] = {
+    def beforeStart(day: LocalDate): Boolean = {
+      val start = colspans.headOption.flatMap(spanStart)
+      start match {
+        case Some(d) => d.isBefore(day)
+        case None => true
+      }
+    }
+
+    def groupByCols(spans: List[DateSpan], rows: List[(LocalDate, A)]): List[(DateSpan, List[A])] = spans match {
+      case Nil => Nil
+      case c :: cs =>
+        if (rows.isEmpty) {
+          if (showempty) (c, Nil) :: groupByCols(cs, Nil)
+          else Nil
+        } else {
+          val (matches, later) = rows.span(p => spanEnd(c).forall(e => e.compareTo(p._1) > 0))
+          (c, matches.map(_._2)) :: groupByCols(cs, later)
+        }
+    }
+
+    val xs = ps
+      .map(a => (date(a), a))
+      .sortBy(_._1)
+      .dropWhile(p => beforeStart(p._1))
+    groupByCols(colspans, xs)
+  }
+  
+  def spanContainsDate(ds: DateSpan, date: LocalDate): Boolean = {
+    (ds, date) match {
+      case (DateSpan(None, None), _) => true
+      case (DateSpan(None, Some(e)), d) => d.isBefore(fromEFDay(e))
+      case (DateSpan(Some(b), None), d) => !d.isBefore(fromEFDay(b))
+      case (DateSpan(Some(b), Some(e)), d) => !d.isBefore(fromEFDay(b)) && d.isBefore(fromEFDay(e))
+    }
+  }
+  
+  def spansIntersect(dss: List[DateSpan]): DateSpan = {
+    dss match {
+      case Nil => nulldatespan
+      case List(d) => d
+      case d::ds => spanIntersect(d, spansIntersect(ds))
+    }
+  }
+
+  def spanIntersect(ds1: DateSpan, ds2: DateSpan): DateSpan = {
+    val b = latest(ds1.start, ds2.start)
+    val e = earliest(ds1.end, ds2.end)
+    DateSpan(b, e)
   }
   
   def spanDefaultsFrom(span1: DateSpan, span2: DateSpan): DateSpan = {
