@@ -5,18 +5,20 @@ import cats.syntax.all._
 import parsley.Parsley
 import parsley.character.satisfy
 
-import java.time.temporal.TemporalAdjusters
+import java.time.temporal.{TemporalAdjusters, WeekFields}
 import java.time.{DayOfWeek, LocalDate, Month, MonthDay}
+import java.util.Locale
 import scala.annotation.tailrec
-
+import sledger.data.Period._
 object Dates {
   val isDateSepChar: Char => Boolean = {
     case c if c == '-' || c == '/' || c == '.' => true
   }
   val datesepchar: Parsley[Char] = satisfy(isDateSepChar)
 
-  def nulldate: LocalDate = LocalDate.of(0, 1, 1)
-
+  val nulldate: LocalDate = LocalDate.of(0, 1, 1)
+  val emptyDateSpan: DateSpan = DateSpan(Some(Exact(nulldate)), Some(Exact(nulldate)))
+  
   sealed trait WhichDate
   case object PrimaryDate extends WhichDate
   case object SecondaryDate extends WhichDate
@@ -47,7 +49,11 @@ object Dates {
     case Flex(d) => Flex(f(d))
   }
 
-  case class DateSpan(start: Option[EFDay] = None, end: Option[EFDay] = None)
+  case class DateSpan(start: Option[EFDay] = None, end: Option[EFDay] = None) {
+    override def toString: String = "DateSpan " + showDateSpan(this)
+  }
+  
+  def showDateSpan(ds: DateSpan): String = showPeriod(dateSpanAsPeriod(ds))  
   val nulldatespan = DateSpan(None, None)
   def spanStart(span: DateSpan): Option[LocalDate] = span.start.map(fromEFDay)
 

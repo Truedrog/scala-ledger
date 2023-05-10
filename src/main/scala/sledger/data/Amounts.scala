@@ -1,15 +1,14 @@
 package sledger.data
 
-import cats._
 import cats.data._
+import cats._
 import cats.syntax.all._
-import cats.derived
-import scala.collection.decorators._
-
 import io.estatico.newtype.macros.newtype
 import sledger.text.WideString.{WideBuilder, wbFromString}
-import sledger.utils._
 import sledger.utils.Math._
+import sledger.utils._
+
+import scala.collection.decorators._
 import scala.math.BigDecimal.RoundingMode
 
 object Amounts {
@@ -327,6 +326,28 @@ object Amounts {
   
   def maSum(mas: List[MixedAmount]): MixedAmount =
     mas.foldLeft(nullMixedAmount)(maPlus)
+  
+  def averageMixedAmounts(mas: List[MixedAmount]): MixedAmount =
+    divideMixedAmount(mas.length, maSum(mas))
+  
+  def divideMixedAmount(n: BigDecimal, ma: MixedAmount): MixedAmount =
+    transformMixedAmount(n / _, ma)
+    
+  def unifyMixedAmount(ma: MixedAmount): Option[Amount] = {
+    def combine(amount: Amount, result: Amount): Option[Amount] = {
+      import Amounts.Amount.amountNum._
+      if(amountIsZero(amount)) {
+        Some(result)
+      } else if(amountIsZero(result)) {
+        Some(amount)
+      } else if (amount.commodity == result.commodity) {
+        Some(amount + result)
+      } else {
+        None
+      }
+    }
+    Foldable[List].foldM[Option, Amount, Amount](amounts(ma), nullamount)(combine)
+  }
   
   def amounts(ma: MixedAmount): List[Amount] = {
     val (zeros, nonzeros) =  ma.mixed.partition(ma => amountIsZero(ma._2))

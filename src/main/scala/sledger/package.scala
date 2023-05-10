@@ -43,7 +43,10 @@ package object sledger {
       new StringBuilder().append(x).append(y)
     }
   }
-  
+
+  sealed trait NormalSign
+  case object NormallyPositive extends NormalSign
+  case object NormallyNegative extends NormalSign
 }
 
 

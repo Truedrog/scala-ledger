@@ -202,6 +202,7 @@ object Journals {
   }
 
   def filterJournalPostings(query: Query, journal: Journal): Journal = {
+    println("reportq", query)
     journal.copy(transactions = journal.transactions
       .map(t => filterTransactionPostingsExtra(journalAccountType(journal, _), query, t)))
   }
@@ -249,41 +250,41 @@ object Journals {
           )
         )
       },
-      txnTieKnot {
-        Transaction(
-          index = 0,
-          comment = "",
-          sourcepos = nullsourcepos,
-          date = LocalDate.of(2023, 6, 2),
-          date2 = None,
-          status = Unmarked,
-          code = "",
-          description = "save",
-          precedingcomment = "",
-          postings = List(
-            post("assets:bank:saving", usd(1)),
-            post("assets:bank:checking", if (explicit) usd(-1) else missingamt)
-          )
-        )
-      },
-      txnTieKnot {
-        Transaction(
-          index = 0,
-          comment = "",
-          sourcepos = nullsourcepos,
-          date = LocalDate.of(2023, 6, 3),
-          date2 = None,
-          status = Unmarked,
-          code = "",
-          description = "eat & shop",
-          precedingcomment = "",
-          postings = List(
-            post("expenses:food", usd(1)),
-            post("expenses:supplies", usd(1)),
-            post("assets:cash", if (explicit) usd(-2) else missingamt)
-          )
-        )
-      },
+//      txnTieKnot {
+//        Transaction(
+//          index = 0,
+//          comment = "",
+//          sourcepos = nullsourcepos,
+//          date = LocalDate.of(2023, 6, 2),
+//          date2 = None,
+//          status = Unmarked,
+//          code = "",
+//          description = "save",
+//          precedingcomment = "",
+//          postings = List(
+//            post("assets:bank:saving", usd(1)),
+//            post("assets:bank:checking", if (explicit) usd(-1) else missingamt)
+//          )
+//        )
+//      },
+//      txnTieKnot {
+//        Transaction(
+//          index = 0,
+//          comment = "",
+//          sourcepos = nullsourcepos,
+//          date = LocalDate.of(2023, 6, 3),
+//          date2 = None,
+//          status = Unmarked,
+//          code = "",
+//          description = "eat & shop",
+//          precedingcomment = "",
+//          postings = List(
+//            post("expenses:food", usd(1)),
+//            post("expenses:supplies", usd(1)),
+//            post("assets:cash", if (explicit) usd(-2) else missingamt)
+//          )
+//        )
+//      },
     )
   )
   

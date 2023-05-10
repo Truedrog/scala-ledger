@@ -1,9 +1,8 @@
 package sledger.data
 import cats._
-import cats.data.NonEmptyList
-import cats.derived
 import cats.derived.auto
-import sledger.data.AccountNames.AccountName
+import sledger.data.Accounts.Account
+import sledger.data.Amounts.maSum
 import sledger.utils.RoseTree._
 
 import scala.util.matching.Regex
@@ -45,10 +44,13 @@ object AccountNames {
   val acctSepChar: Char = ':'
 
   val acctsep: String = acctSepChar.toString
+  
   val accountNameComponents: AccountName => List[AccountName] = 
     accname => accname.split(acctsep).toList
+    
   val accountNameFromComponents: List[AccountName] => AccountName = 
     components => Foldable[List].intercalate(components, acctsep)
+    
   val accountLeafName: AccountName => String = 
     accountName => accountNameComponents(accountName).last
     
@@ -112,16 +114,51 @@ object AccountNames {
     else a.count(c => c == acctSepChar) + 1
   }
   
+  def clipAccountName(n: Option[Int], accountName: AccountName): AccountName = {
+    n match {
+      case Some(n) => accountNameFromComponents(accountNameComponents(accountName).take(n))  
+      case None => identity(accountName)
+    }
+  }
+  
+  def clipOrEllipsifyAccountName(n: Option[Int], accountName: AccountName): AccountName = {
+    n match {
+      case Some(0) => "..."
+      case n => clipAccountName(n, accountName)
+    }
+  }
+
+  def groupOn[A, K](f: A => K)(as: List[A])(implicit eq: Eq[K]): List[List[A]] = as match {
+    case Nil => Nil
+    case a :: _ =>
+      val (ys, zs) = as.span(x => eq.eqv(f(a), f(x)))
+      ys :: groupOn(f)(zs)
+  }
+  def aname(account: Account): AccountName = account.name
+  
+  def clipAccountsAndAggregate(n: Option[Int], as: List[Account]): List[Account] = {
+    n match {
+      case Some(d) =>
+        val clipped = for {
+          a <- as
+        } yield a.copy(name = clipOrEllipsifyAccountName(Some(d), a.name))
+
+        for {
+          group <- clipped.groupBy(_.name).values.toList
+          if group.nonEmpty
+          a = group.head
+        } yield a.copy(ebalance = maSum(group.map(_.ebalance)))
+      case None => as
+    }
+
+  } 
+  
   def expandAccountNames(as: List[AccountName]): List[AccountName] = {
     Foldable[List].foldMap(as)(a => expandAccountName(a).toSet).toList
   }
 
-  // Define a function to expand an account name
   def expandAccountName(a: AccountName): List[AccountName] = {
-    NonEmptyList
-      .fromListUnsafe(accountNameComponents(a).tails.toList)
-      .tail
-      .map(accountNameFromComponents)
+    accountNameComponents(a).inits.toList.reverse.tail.map(accountNameFromComponents)
   }
   
   def topAccountNames(as: List[AccountName]): List[AccountName] = {
@@ -138,6 +175,16 @@ object AccountNames {
       case a2 => a2 +: go(parentAccountName(a2))
     }
     go(parentAccountName(a))
+  }
+  
+  def accountNameDrop(n: Int, a: AccountName): AccountName = {
+    def accountNameFromComponentsOrElide(xs: List[String]): AccountName = {
+      xs match {
+        case Nil => "..."
+        case xs => accountNameFromComponents(xs)
+      }
+    }
+    accountNameFromComponentsOrElide(accountNameComponents(a).drop(n))
   }
   
   def isAccountNamePrefixOf(a: AccountName, b: AccountName): Boolean = (a + acctsep).startsWith(b)

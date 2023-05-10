@@ -1,10 +1,11 @@
 package sledger
 
 import sledger.Queries.Query._
-import sledger.data.AccountNames.{AccountName, AccountType}
+import sledger.data.AccountNames.{AccountName, AccountType, accountNameLevel, isAccountSubtypeOf}
 import sledger.data.Dates.{DateSpan, spanContainsDate, spansIntersect}
 import sledger.data.Postings.{Posting, postingDate, postingDate2}
 
+import scala.util.control.Breaks.ne
 object Queries {
   sealed trait Query
 
@@ -24,6 +25,7 @@ object Queries {
     case class Date2(dateSpan: DateSpan) extends Query
 
     case class Depth(level: Int) extends Query
+    case class Type(at: List[AccountType]) extends Query
 
   }
 
@@ -94,6 +96,30 @@ object Queries {
       case _ => None
     }
   }
+  
+  def queryDepth(query: Query): Option[Int] = {
+    def go(query: Query): List[Int] = {
+      query match {
+        case Depth(level) => List(level)
+        case Or(queries) => queries.flatMap(q => queryDepth(q))
+        case And(queries) => queries.flatMap(q => queryDepth(q))
+        case _ => List()
+      }
+    }
+ 
+    go(query).minOption
+  }
+  
+  def matchesAccount(query: Query, account: AccountName): Boolean = {
+    (query, account) match {
+      case (Nothing, _) => false
+      case (Not(m), a)  => !matchesAccount(m, a)
+      case (Or(ms), a) => ms.exists(q => matchesAccount(q, a))
+      case (And(ms), a) => ms.forall(q => matchesAccount(q, a))
+      case (Depth(d), a) => accountNameLevel(a) <= d
+      case (_, _) => true
+    }
+  }
 
   def matchesPosting(q: Query, posting: Posting): Boolean = {
     (q, posting) match {
@@ -102,9 +128,12 @@ object Queries {
       case (Nothing, _) => false
       case (Or(qs), p) => qs.exists(q => matchesPosting(q, p))
       case (And(qs), p) => qs.forall(q => matchesPosting(q, p))
-      case (Date(spn), p) => spanContainsDate(spn, postingDate(p))
+      case (Date(spn), p) => {
+        spanContainsDate(spn, postingDate(p))
+      }
       case (Date2(spn), p) => spanContainsDate(spn, postingDate2(p))
       case (Depth(level), _) => true // todo add account match
+      case (Type(_), _) => false
     }
   }
 
@@ -113,6 +142,7 @@ object Queries {
       case (atype, Not(q), p) => !matchesPostingExtra(atype, q, p)
       case (atype, Or(qs), p) => qs.exists(q => matchesPostingExtra(atype, q, p))
       case (atype, And(qs), p) => qs.forall(q => matchesPostingExtra(atype, q, p))
+      case (atype, Type(ts), p) => atype(p.account).fold(false)(t => ts.exists(t1 => isAccountSubtypeOf(t, t1)))
       case (_, q, p) => matchesPosting(q, p)
     }
   }

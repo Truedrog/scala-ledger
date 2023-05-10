@@ -87,8 +87,8 @@ package object reports {
   def flatDisplayName(a: AccountName): DisplayName = DisplayName(a, a, 1)
   def treeDisplayName(a: AccountName): DisplayName = DisplayName(a, accountLeafName(a), accountNameLevel(a))
 
-  def periodicReportRowFullName[B](prr: PeriodicReportRow[DisplayName, B]): AccountName = prr.name.displayFull
-  def periodicReportRowDisplayName[B](prr: PeriodicReportRow[DisplayName, B]): AccountName = prr.name.displayName
-  def periodicReportRowDepth[B](prr: PeriodicReportRow[DisplayName, B]): Int = prr.name.displayDepth
+  def periodicReportRowFullName[A](prr: PeriodicReportRow[DisplayName, A]): AccountName = prr.name.displayFull
+  def periodicReportRowDisplayName[A](prr: PeriodicReportRow[DisplayName, A]): AccountName = prr.name.displayName
+  def periodicReportRowDepth[A](prr: PeriodicReportRow[DisplayName, A]): Int = prr.name.displayDepth
   
 }

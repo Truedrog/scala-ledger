@@ -5,7 +5,7 @@ import sledger.Queries.Query
 import sledger.Queries.Query.Any
 
 import java.time.LocalDate
-import sledger.Status
+import sledger.{NormalSign, Status}
 import sledger.data.Dates._
 import sledger.data.Journals.{Journal, journalDateSpan, journalDateSpanBoth}
 import sledger.data.StringFormat.defaultBalanceLineFormat
@@ -24,9 +24,9 @@ object ReportOptions {
 
   case object PerPeriod extends BalanceAccumulation
 
-  case object Cumulative extends BalanceAccumulation
+//  case object Cumulative extends BalanceAccumulation
 
-  case object Historical extends BalanceAccumulation
+//  case object Historical extends BalanceAccumulation
 
   def defaultBalanceAccumm: BalanceAccumulation = PerPeriod
 
@@ -48,12 +48,15 @@ object ReportOptions {
                       statuses: List[Status],
                       depth: Option[Int],
                       format: StringFormat,
+                      noElide: Boolean,
                       pretty: Boolean,
                       balanceCalc: BalanceCalculation,
                       balanceAccum: BalanceAccumulation,
                       accountListMode: AccountListMode,
+                      sortAmount: Boolean,
                       drop: Int,
                       date2: Boolean,
+                      normalbalance: Option[NormalSign],
                       layout: Layout
                     )
 
@@ -63,12 +66,15 @@ object ReportOptions {
     statuses = List.empty,
     depth = None,
     format = defaultBalanceLineFormat,
+    noElide = false,
     pretty = false,
     balanceCalc = defaultBalanceCalculation,
     balanceAccum = defaultBalanceAccumm,
     accountListMode = defaultAccountListMode,
+    sortAmount = false,
     drop = 0,
     date2 = false,
+    normalbalance = None,
     layout = LayoutWide(None)
   )
   case class Spec(options: Options, day: LocalDate, query: Query)

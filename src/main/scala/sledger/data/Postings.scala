@@ -28,6 +28,18 @@ object Postings {
                       //                      balanceAssertion: Option[BalanceAssertion],
                       transaction: Option[Transaction]
                     ) {
+
+    override def toString: String = {
+      s"\nPosting {" +
+        s"date = ${this.date1.toString} " +
+        s"date2 = ${this.date2.toString} " +
+        s"status = ${this.status.toString} " +
+        s"account = ${this.account} " +
+        s"amount = ${this.amount.toString} " +
+        s"comment = ${this.comment} " +
+        s"transaction = txn} \n"
+    }
+
     override def equals(o: Any): Boolean = { // for tests
 
       o match {
