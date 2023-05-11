@@ -1,8 +1,6 @@
 import cats._
 import sledger.data.Amounts.Amount
 
-import java.time.{DayOfWeek, LocalDate}
-
 package object sledger {
 
   type SourcePos = (Int, Int)

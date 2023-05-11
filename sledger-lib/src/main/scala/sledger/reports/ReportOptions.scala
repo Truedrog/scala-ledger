@@ -1,6 +1,5 @@
 package sledger.reports
 
-
 import sledger.Queries.Query
 import sledger.Queries.Query.Any
 
@@ -13,9 +12,13 @@ import sledger.data.{Period, PeriodAll, StringFormat}
 
 object ReportOptions {
   sealed trait BalanceCalculation
+
   case object CalcChange extends BalanceCalculation
+
   case object CalcBudget extends BalanceCalculation
+
   case object CalcValueChange extends BalanceCalculation
+
   case object CalcGain extends BalanceCalculation
 
   def defaultBalanceCalculation: BalanceCalculation = CalcChange
@@ -24,22 +27,28 @@ object ReportOptions {
 
   case object PerPeriod extends BalanceAccumulation
 
-//  case object Cumulative extends BalanceAccumulation
+  //  case object Cumulative extends BalanceAccumulation
 
-//  case object Historical extends BalanceAccumulation
+  //  case object Historical extends BalanceAccumulation
 
   def defaultBalanceAccumm: BalanceAccumulation = PerPeriod
 
   sealed trait AccountListMode
+
   case object ALFlat extends AccountListMode
+
   case object ALTree extends AccountListMode
 
   def defaultAccountListMode: AccountListMode = ALFlat
 
   sealed trait Layout
+
   case class LayoutWide(width: Option[Int]) extends Layout
+
   case object LayoutTall extends Layout
+
   case object LayoutBare extends Layout
+
   case object LayoutTidy extends Layout
 
   case class Options(
@@ -77,16 +86,17 @@ object ReportOptions {
     normalbalance = None,
     layout = LayoutWide(None)
   )
+
   case class Spec(options: Options, day: LocalDate, query: Query)
 
-  def defaultSpec: Spec = Spec(defaultsOptions,nulldate, Any)
-  
-  def reportSpan(journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) ={
+  def defaultSpec: Spec = Spec(defaultsOptions, nulldate, Any)
+
+  def reportSpan(journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) = {
     reporSpanHelper(secondary = false, journal, spec)
   }
-  
-  def whichDate(options: Options): WhichDate = if(options.date2) SecondaryDate else PrimaryDate
-  
+
+  def whichDate(options: Options): WhichDate = if (options.date2) SecondaryDate else PrimaryDate
+
   def reporSpanHelper(secondary: Boolean, journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) = {
     //todo this is requested span specified by various options args if any
     val requested = nulldatespan
@@ -95,10 +105,10 @@ object ReportOptions {
     println("journalspan", journalspan)
     val requested1 = spanDefaultsFrom(requested, spanUnion(journalspan, nulldatespan))
     println("requested1", requested1)
-    
+
     val intervalspans = {
       val adjust = spanStart(requested).isEmpty
-      splitSpan(adjust, spec.options.interval,requested1)
+      splitSpan(adjust, spec.options.interval, requested1)
     }
     println("intervalspans", intervalspans)
 
@@ -107,7 +117,7 @@ object ReportOptions {
       intervalspans.lastOption.flatMap(a => spanEnd(a).map(Exact))
     )
     println("reportSpan", reportSpan)
-    
+
     (reportSpan, intervalspans)
   }
 }

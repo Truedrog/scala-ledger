@@ -6,15 +6,14 @@ import parsley.Parsley
 import parsley.Parsley.lookAhead
 import parsley.character.newline
 import parsley.combinator._
-import parsley.debug._
 import parsley.errors.combinator._
 import parsley.implicits.zipped._
 import parsley.position.pos
 import parsley.registers.Reg
 import sledger.data.Amounts._
 import sledger.data.InputOptions.defInputOpts
-import sledger.data.Journals._
 import sledger.data.Journals.JournalOps._
+import sledger.data.Journals._
 import sledger.data.Postings._
 import sledger.data.Transactions.{Transaction, txnTieKnot}
 import sledger.read.Common.{accountnamep, amountp, codep, datep, descriptionp, emptyorcommentlinep, followingcommentp, multilinecommentp, statusp, transactioncommentp}

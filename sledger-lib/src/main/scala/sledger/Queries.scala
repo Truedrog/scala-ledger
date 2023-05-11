@@ -5,7 +5,6 @@ import sledger.data.AccountNames.{AccountName, AccountType, accountNameLevel, is
 import sledger.data.Dates.{DateSpan, spanContainsDate, spansIntersect}
 import sledger.data.Postings.{Posting, postingDate, postingDate2}
 
-import scala.util.control.Breaks.ne
 object Queries {
   sealed trait Query
 

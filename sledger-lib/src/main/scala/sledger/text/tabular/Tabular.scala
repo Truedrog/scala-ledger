@@ -2,6 +2,7 @@ package sledger.text.tabular
 import cats._
 import cats.data._
 import cats.syntax.all._
+
 object Tabular {
   sealed trait Properties
 

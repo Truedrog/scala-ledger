@@ -1,7 +1,7 @@
 package sledger.data
 
-import cats.syntax.all._
 import cats.{Group => _, _}
+import cats.syntax.all._
 import io.github.akiomik.seaw.implicits._
 import sledger._
 import sledger.data.AccountNames.AccountName

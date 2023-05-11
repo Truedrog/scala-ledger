@@ -6,5 +6,5 @@ object InputOptions {
 
   case class InputOpts(balancingOptions: BalancingOptions,
                       )
-  val defInputOpts = InputOpts(balancingOptions = defBalancingOptions)
+  val defInputOpts: InputOpts = InputOpts(balancingOptions = defBalancingOptions)
 }
