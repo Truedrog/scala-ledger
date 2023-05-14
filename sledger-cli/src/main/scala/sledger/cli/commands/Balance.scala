@@ -2,7 +2,6 @@ package sledger.cli.commands
 
 import cats.effect._
 import cats.effect.std.Console
-import cats.syntax.all._
 import sledger.cli.CliOptions.CliOpts
 import sledger.data.Journals.Journal
 

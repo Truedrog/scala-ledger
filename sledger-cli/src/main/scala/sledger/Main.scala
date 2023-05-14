@@ -27,17 +27,16 @@ object Main extends CommandIOApp(
       )
     } yield result
 
-  def evalCmd[F[_] : Sync : Console](run: Commands.CLIRun): F[Unit] = {
+  def evalCmd(run: Commands.CLIRun): IO[Unit] = {
     run.command match {
       case Commands.Add => ().pure
-      case Commands.Balance =>
-        withJournalDo[F, Unit](run.options, balance(run.options, _))
+      case Commands.Balance => withJournalDo[IO, Unit](run.options, balance(run.options, _))
     }
   }
 
   override def main: Opts[IO[ExitCode]] = {
     Commands.parseCliRun.map { run =>
-      evalCmd[IO](run)
+      evalCmd(run)
         .handleErrorWith(f => Console[IO].errorln(s"sledger: ${f.getMessage}"))
         .as(ExitCode.Success)
     }

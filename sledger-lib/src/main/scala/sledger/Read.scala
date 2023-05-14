@@ -18,7 +18,12 @@ object Read {
   val journalEnvVar2 = "LEDGER"
   val journalDefaultFilename = ".sledger.journal"
 
-
+  private def handleIO[F[_]: Sync](f: F[String]): F[String] = {
+    f.handleErrorWith {
+      case NonFatal(_) => Sync[F].pure("")
+    }
+  }
+  
   def defaultJournalPath[F[_] : Sync]: F[String] = {
     for {
       s <- envJournalPath[F]
@@ -38,12 +43,7 @@ object Read {
         case value => Sync[F].pure(value)
       }
 
-    val catchIOExceptionWrapper: F[String] => F[String] =
-      _.handleErrorWith {
-        case NonFatal(_) => Sync[F].pure("")
-      }
-
-    catchIOExceptionWrapper(
+    handleIO(
       catchIOException(getEnvIO(journalEnvVar)).flatMap {
         case None => catchIOException(getEnvIO(journalEnvVar2)).flatMap {
           case None => Sync[F].pure("")
@@ -56,12 +56,8 @@ object Read {
 
   private def defPath[F[_] : Sync]: F[String] = {
     val getHomeDirectoryIO: F[Path] = Sync[F].delay(Paths.get(System.getProperty("user.home")))
-    val catchIOExceptionWrapper: F[String] => F[String] =
-      _.handleErrorWith {
-        case NonFatal(_) => Sync[F].pure("")
-      }
 
-    catchIOExceptionWrapper(
+    handleIO(
       getHomeDirectoryIO.flatMap { home =>
         Sync[F].delay(Files.createDirectories(home))
           .as(journalDefaultFilename)
@@ -95,7 +91,6 @@ object Read {
     prefix
   }
 
-
   def readJournal[F[_] : Sync](inputOpts: InputOpts,
                                filepath: Option[String],
                                content: String): EitherT[F, String, Journal] = {
@@ -103,11 +98,10 @@ object Read {
   }
 
   def readJournalFile[F[_] : Sync](inputOptions: InputOpts, filePath: String): EitherT[F, String, Journal] = {
-    val (mfmt, f) = splitReaderPrefix(filePath)
     for {
-      _ <- EitherT.liftF(requireJournalFileExists(f))
-      t <- EitherT.liftF(readFileOrStdin(f))
-      j <- readJournal(inputOptions, Some(f), t)
+      _ <- EitherT.liftF(requireJournalFileExists(filePath))
+      t <- EitherT.liftF(readFileOrStdin(filePath))
+      j <- readJournal(inputOptions, Some(filePath), t)
     } yield j
   }
 

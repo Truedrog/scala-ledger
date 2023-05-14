@@ -13,6 +13,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= compilerOptions,
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-effect" % "3.4.8",
+    "org.typelevel" %% "munit-cats-effect-3" % "1.0.7" % Test,
     "org.typelevel" %% "cats-effect-kernel" % "3.4.7",
     "org.typelevel" %% "cats-effect-std" % "3.4.7",
     compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
@@ -40,7 +41,6 @@ lazy val `sledger-lib` = project
     name := "sledger-lib",
     commonSettings,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "munit-cats-effect-3" % "1.0.7" % Test,
       "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0",
       "com.github.j-mie6" %% "parsley" % "4.2.9",
       "com.github.j-mie6" %% "parsley-cats" % "1.2.0",
