@@ -339,12 +339,11 @@ object BalanceReports {
     val allchanges = map1 ++ map2
 
     def rowbals(name: ClippedAccountName, unvaluedChanges: Map[DateSpan, Account]): Map[DateSpan, Account] = {
-      println("rowbals", spec.options.balanceAccum match {
-        case ReportOptions.PerPeriod => unvaluedChanges.map { case (d, a) => d -> avalue.apply(d).apply(a) }
-      })
-      spec.options.balanceAccum match {
+      val rowbals = spec.options.balanceAccum match {
         case ReportOptions.PerPeriod => unvaluedChanges.map { case (d, a) => d -> avalue.apply(d).apply(a) }
       }
+      println("rowbals", rowbals)
+      rowbals
     }
 
     allchanges.map { case (aname, changes) => aname -> rowbals(aname, changes) }

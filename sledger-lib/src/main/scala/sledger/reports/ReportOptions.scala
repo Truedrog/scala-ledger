@@ -89,7 +89,7 @@ object ReportOptions {
 
   case class Spec(options: Options, day: LocalDate, query: Query)
 
-  def defaultSpec: Spec = Spec(defaultsOptions, nulldate, Any)
+  val defaultSpec: Spec = Spec(defaultsOptions, nulldate, Any)
 
   def reportSpan(journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) = {
     reporSpanHelper(secondary = false, journal, spec)

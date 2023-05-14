@@ -11,7 +11,7 @@ import parsley.implicits.zipped._
 import parsley.position.pos
 import parsley.registers.Reg
 import sledger.data.Amounts._
-import sledger.data.InputOptions.defInputOpts
+import sledger.data.InputOptions.{InputOpts, defInputOpts}
 import sledger.data.Journals.JournalOps._
 import sledger.data.Journals._
 import sledger.data.Postings._
@@ -23,7 +23,7 @@ import java.time.LocalDateTime
 
 object JournalReader {
   private val r = Reg.make[Journal]
-  
+
   val postingp: Parsley[Posting] = {
     (skipNonNewlineSpaces1,
       skipNonNewlineSpaces,
@@ -70,7 +70,7 @@ object JournalReader {
         postings = postings))
     }
   }
-  
+
   private val journalp = {
     val addJournalItemP = {
       choice(transactionp.flatMap(t => r.modify(_.addTransaction(t))),
@@ -79,12 +79,12 @@ object JournalReader {
     }
     many(addJournalItemP) *> eof *> r.get
   }
-  
+
   case class ParseError(parseError: String) extends Exception {
     override def getMessage: String = parseError
   }
 
-  def finalizeJournal[F[_]:Sync](file: String, content: String, pj: Journal): EitherT[F, String, Journal] = {
+  def finalizeJournal[F[_] : Sync](file: String, content: String, pj: Journal): EitherT[F, String, Journal] = {
     val definopts = defInputOpts
     import sledger.data.Journals.JournalOps._
     val t = Sync[F].delay(LocalDateTime.now())
@@ -100,7 +100,7 @@ object JournalReader {
       })
     } yield j
   }
-  
+
   def initialiseAndParseJournal[F[_] : Sync](r: Reg[Journal])
                                             (parser: Parsley[Journal], file: String = "", content: String = ""): EitherT[F, String, Journal] = {
     val initJournal = nulljournal.copy()
@@ -113,7 +113,7 @@ object JournalReader {
     } yield j
   }
 
-
-  def readJournal[F[_] : Sync]: (CommoditySymbol, CommoditySymbol) => EitherT[F, String, Journal] = 
-    initialiseAndParseJournal(r)(journalp, _, _)
+  def reader[F[_] : Sync](inputOpts: InputOpts, mbpath: Option[String], content: String): EitherT[F, CommoditySymbol, Journal] = {
+    initialiseAndParseJournal(r)(journalp, mbpath.getOrElse("(string)"), content)
+  }
 }
