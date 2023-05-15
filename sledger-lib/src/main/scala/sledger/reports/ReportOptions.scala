@@ -86,7 +86,7 @@ object ReportOptions {
     drop = 0,
     noTotal = false,
     date2 = false,
-    color = false,
+    color = true, // todo parse from args
     normalbalance = None,
     layout = LayoutWide(None)
   )

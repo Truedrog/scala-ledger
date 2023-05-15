@@ -89,7 +89,7 @@ object Balance {
           case _ => BottomRight
         }
         val dopts = noPrice.copy(
-          displayColour = options.color,
+          displayColor = options.color,
           displayOneLine = oneLine,
           displayMinWidth = minWidth,
           displayMaxWidth = maxWidth
@@ -113,7 +113,7 @@ object Balance {
 
     def render[A](a: A, acctname: String, dep: Int, amt: MixedAmount): List[Cell] = {
       val cs = if (mixedAmountLooksZero(amt)) List("") else maCommodities(amt).toList
-      val dopts = oneLine.copy(displayColour = options.color, displayOrder = Some(cs))
+      val dopts = oneLine.copy(displayColor = options.color, displayOrder = Some(cs))
       val dispname = " " * ((dep - 1) * 2) + acctname
       val damts = showMixedAmountLinesB(dopts, amt)
       List(

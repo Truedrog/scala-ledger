@@ -65,7 +65,7 @@ object Common {
   }
 
   val isDigitSeparatorChar: Char => Boolean = (c: Char) => isDecimalMark(c) || c == ' '
-  
+
   val followingcommentp_ : Parsley[String] => Parsley[CommoditySymbol] = (contentp: Parsley[String]) => {
     val headerp = char(';') *> skipNonNewlineSpaces
     (skipNonNewlineSpaces,
@@ -73,7 +73,7 @@ object Common {
       eolof,
       many(attempt(skipNonNewlineSpaces1 *> headerp) *> contentp <* eolof))
       .zipped { (_, sameLine, _, nextLines) =>
-        val sameLine_ = if(sameLine.isEmpty && nextLines.nonEmpty) {
+        val sameLine_ = if (sameLine.isEmpty && nextLines.nonEmpty) {
           List()
         } else sameLine
         (sameLine_ ++ nextLines).foldLeft(List.empty[String]) { (acc, t) =>
@@ -82,10 +82,10 @@ object Common {
       }
   }
   val followingcommentp = followingcommentp_(takeWhileP(a => a != '\n'))
-  val transactioncommentp = followingcommentp //todo tags
+  val transactioncommentp = followingcommentp // todo tags
   val noncommenttextp: Parsley[String] = takeWhileP(c => !isSameLineCommentStart(c) && !isNewline(c))
     .map(_.stripMargin)
-  
+
   val descriptionp: Parsley[String] = noncommenttextp
   val statusp: Parsley[Status] = {
     attemptChoice(skipNonNewlineSpaces *> char('*') #> Cleared,
@@ -93,7 +93,7 @@ object Common {
       pure(()) #> Unmarked
     ).label("cleared status")
   }
-  
+
   val codep: Parsley[String] = {
     optionalAs(attempt({
       (skipNonNewlineSpaces1,
@@ -102,7 +102,7 @@ object Common {
         char(')')).zipped { (_, _, code, _) => code }
     }), "").label("transaction code")
   }
-  
+
   val signp: Parsley[BigDecimal => BigDecimal] = {
     val sign: BigDecimal => BigDecimal = (n: BigDecimal) => 0 - n
     val idD: BigDecimal => BigDecimal = identity[BigDecimal]
@@ -111,8 +111,11 @@ object Common {
   val singlespacep: Parsley[Unit] = spacenonewline *> notFollowedBy(spacenonewline)
   val singlespacedtextsatisfying1p: (Char => Boolean) => Parsley[String] = (f: Char => Boolean) => {
     val partp = takeWhileP1(c => f(c) && !isSpace(c))
-    (partp, many(attempt(singlespacep *> partp)))
-      .zipped { (firstPart, otherParts) => (firstPart :: otherParts).mkString(" ") }
+
+    for {
+      firstPart <- partp
+      otherParts <- many(attempt(singlespacep) *> partp)
+    } yield (firstPart +: otherParts).mkString(" ")
   }
   val singlespacedtext1p: Parsley[String] = singlespacedtextsatisfying1p(const(true))
   val accountnamep: Parsley[AccountName] = singlespacedtext1p
@@ -150,7 +153,7 @@ object Common {
         case (DigitGroup(l1, n1), DigitGroup(l2, n2)) => DigitGroup(l1 + l2, n1 * BigInt(10).pow(l2) + n2)
       }
   }
-  
+
   case class AmbiguousNumber(group1: DigitGroup, sep: Char, group2: DigitGroup)
 
   implicit val ShowAmbiguousNumber: Show[AmbiguousNumber] = (n: AmbiguousNumber) => s"AmbiguousNumber ${n.group1.show}${n.sep}${n.group2.show}"
@@ -168,11 +171,11 @@ object Common {
     val trailingDecimalPt = (grp1: DigitGroup) => {
       satisfy(isDecimalMark).map(decPt => NoSeparators(grp1, Some((decPt, Monoid[DigitGroup].empty))))
     }
-    
+
     val withDecimalPt = (digitSep: Char, digitGroups: List[DigitGroup]) => {
 
       for {
-        decPt       <- satisfy(c => isDecimalMark(c) && c != digitSep)
+        decPt <- satisfy(c => isDecimalMark(c) && c != digitSep)
         decDigitGrp <- digitgroupp <|> pure[DigitGroup](Monoid[DigitGroup].empty)
       } yield {
         WithSeparators(digitSep, digitGroups, Some((decPt, decDigitGrp)))
@@ -188,7 +191,7 @@ object Common {
     }
 
     val withSeparators = (grp1: DigitGroup) => {
-      join(attempt((satisfy(isDigitSeparatorChar), digitgroupp).zipped { (sep, grp2) => 
+      join(attempt((satisfy(isDigitSeparatorChar), digitgroupp).zipped { (sep, grp2) =>
         join(for {
           grps <- many(attempt(char(sep) *> digitgroupp))
           digitGroups = grp1 :: grp2 :: grps
@@ -244,9 +247,9 @@ object Common {
   val fromRawNumber: RawNumber => Either[String, (BigDecimal, Int, Option[Char], Option[DigitGroupStyle])] = (raw: RawNumber) => {
     def toQuantity(preDecimalGrp: DigitGroup, posDecimalGrp: DigitGroup): Either[String, (BigDecimal, Int)] = {
       val digitGrpNum = (preDecimalGrp |+| posDecimalGrp).digitGroupNumber
-      val precision = posDecimalGrp.digitGroupLength - 0 // fixme get exponent
+      val precision = posDecimalGrp.digitGroupLength - 0
       if (precision < 0) {
-        Right(BigDecimal(0, digitGrpNum.toInt *10^(-precision)), 0)
+        Right(BigDecimal(0, digitGrpNum.toInt * 10 ^ (-precision)), 0)
       } else if (precision < 255) {
         Right(BigDecimal(digitGrpNum, precision), precision)
       } else Left("invalid number: numbers with more than 255 decimal places are currently not supported")
@@ -263,7 +266,7 @@ object Common {
     }
 
     def digitGroup(raw: RawNumber): DigitGroup = raw match {
-      case NoSeparators(digitGrp, _)         => digitGrp
+      case NoSeparators(digitGrp, _) => digitGrp
       case WithSeparators(_, digitGroups, _) => digitGroups.combineAll
     }
 
@@ -289,14 +292,32 @@ object Common {
     ((Int, Int), Either[AmbiguousNumber, RawNumber])
       => Parsley[(BigDecimal, Precision, Option[Char], Option[DigitGroupStyle])] =
     (numRegion: (Int, Int), ambiguousRawNum: Either[AmbiguousNumber, RawNumber]) => {
-      val rawNum = ambiguousRawNum.fold(disambiguateNumber, {a => identity(a)})
+      val rawNum = ambiguousRawNum.fold(disambiguateNumber, { a => identity(a) })
       fromRawNumber(rawNum) match {
         case Left(errormsg) => fail(errormsg)
         case Right((q, p, d, g)) => pure(q, Precision(p), d, g)
       }
     }
-  
+
   val simpleamountp: Parsley[Amount] = {
+
+    val leftsymbolamountp = (sign: BigDecimal => BigDecimal) => {
+      (commoditysymbolp, skipNonNewlineSpacesb, signp, offset, rawnumberp, offset).zipped.flatMap {
+        case (c, spaced, sign, offsetBefore, ambiguousRawNum, offsetAfter) =>
+          val numRegion = (offsetBefore, offsetAfter)
+          join(interpretNumber(numRegion, ambiguousRawNum).map {
+            case (q, prec, mdec, mgrps) =>
+              val s = amountstyle.copy(side = L,
+                commodityspaced = spaced,
+                precision = prec,
+                decimalpoint = mdec,
+                digitgroups = mgrps
+              )
+              pure(nullamount.copy(commodity = c, quantity = sign(q), style = s))
+          })
+      }
+    }
+
     val rightornosymbolamountp = (sign: BigDecimal => BigDecimal) => {
       (offset, rawnumberp, offset, option(attempt((skipNonNewlineSpacesb, commoditysymbolp).zipped)))
         .zipped.flatMap { case (offBeforeNum, ambiguousRawNum, offAfterNum, mSpaceAndCommodity) =>
@@ -320,9 +341,9 @@ object Common {
         })
       }
     }
-    signp.flatMap(sign => rightornosymbolamountp(sign))
+    signp.flatMap(sign => leftsymbolamountp(sign) <|> rightornosymbolamountp(sign))
   }
-  
+
   val amountnobasisp: Parsley[Amount] = {
     simpleamountp <* skipNonNewlineSpaces //todo add cost?
   }
@@ -330,16 +351,4 @@ object Common {
     val spaces = skipNonNewlineSpaces
     simpleamountp <* spaces
   }
-
-//  val balanceassertionp: Parsley[BalanceAssertion] = { //todo re-add later
-//    (pos,
-//      char('='),
-//      option(attempt(char('='))).map(_.isDefined),
-//      option(attempt(char('*'))).map(_.isDefined),
-//      skipNonNewlineSpaces,
-//      amountnobasisp)
-//      .zipped { (sourcepos, _, isTotal, isInclusive, _, amount) =>
-//        BalanceAssertion(amount, isTotal, isInclusive, sourcepos)
-//      }
-//  }
 }

@@ -23,7 +23,7 @@ object Amounts {
 
   case class AmountDisplayOpts(
                                 displayPrice: Boolean = true,
-                                displayColour: Boolean = false, //todo color?
+                                displayColor: Boolean = false,
                                 displayZeroCommodity: Boolean = false,
                                 displayThousandsSep: Boolean = true,
                                 displayOneLine: Boolean = false,
@@ -377,7 +377,13 @@ object Amounts {
     amount.copy(style = amount.style.copy(precision = precision))
 
   def showAmountB(showOpts: AmountDisplayOpts, amount: Amount): WideBuilder = {
-//    val color = if (showOpts.displayColour && isNegativeAmount(amount)) else 
+    val wrap: WideBuilder => WideBuilder = wb => {
+      val s = wb.builder
+      val w = wb.width
+      val colored = fansi.Color.Red(s.result()).render
+      WideBuilder(new StringBuilder(colored), w)
+    }
+    val color = if (showOpts.displayColor && isNegativeAmount(amount)) wrap else identity[WideBuilder] _
    
     val showC = (l: WideBuilder, r: WideBuilder) => {
       if (showOpts.displayOrder.isDefined) Monoid[WideBuilder].empty else l |+| r
@@ -401,10 +407,10 @@ object Amounts {
     if(amount.commodity == "AUTO") {
       Monoid[WideBuilder].empty
     } else {
-      amount.style.side match {
+      color.apply(amount.style.side match {
         case L => showC(wbFromString(c), space) |+| quantity |+| price
         case R => quantity |+| showC(space, wbFromString(c)) |+| price
-      }
+      })  
     }
   }
 
@@ -487,7 +493,7 @@ object Amounts {
   }
   
   def showMixedAmountOneLineWithoutPrice(color: Boolean, ma: MixedAmount): String = {
-    showMixedAmountB(oneLine, ma).builder.result() // todo add color
+    showMixedAmountB(oneLine.copy(displayColor = color), ma).builder.result() // todo add color
   }
   
   def showMixedAmountB(maDisplayOpts: AmountDisplayOpts, ma: MixedAmount): WideBuilder = {
@@ -587,11 +593,6 @@ object Amounts {
     }
 
     amounts.mapAccumulate(-sep)(display)._2
-  }
-  
-  def mixedAmountCost(ma: MixedAmount): MixedAmount = {
-    val (noPrices, withPrices) = ma.mixed.partition { case (_, amt) => true}//todo refactor
-    withPrices.foldLeft(MixedAmount(noPrices)) {case (m, (_, a)) =>  maAddAmount(m, a)}
   }
   
   def mixedAmountStripPrices(ma: MixedAmount): MixedAmount = {

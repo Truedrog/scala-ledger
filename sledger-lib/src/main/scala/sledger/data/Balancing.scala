@@ -106,8 +106,8 @@ object Balancing {
     val ex = decorateError(tpos, merrcols, txntxt)
     (tpos, merrcols, ex)
   }
-  
-  def decorateError(l: Int, mcols: Option[(Int, Option[Int])], txt: String) = {
+
+  def decorateError(l: Int, mcols: Option[(Int, Option[Int])], txt: String): String = {
     val (ls, ms) = txt.split('\n').toList.splitAt(1)
     val lsPrime = ls map (line => s"$l | $line")
     val lineprefix = " " * (l.toString.length + 1) + "| "
