@@ -3,7 +3,8 @@ package sledger.read
 import cats.data._
 import cats.effect._
 import parsley.Parsley
-import parsley.Parsley.lookAhead
+import parsley.Parsley.{attempt, lookAhead}
+import parsley.debug._
 import parsley.character.newline
 import parsley.combinator._
 import parsley.errors.combinator._
@@ -25,37 +26,46 @@ object JournalReader {
   private val r = Reg.make[Journal]
 
   val postingp: Parsley[Posting] = {
-    (skipNonNewlineSpaces1,
-      skipNonNewlineSpaces,
-      accountnamep,
-      skipNonNewlineSpaces,
-      option(amountp),
-      skipNonNewlineSpaces,
+    println("posting parse")
+    val a = for {
+      _ <- skipNonNewlineSpaces.debug("more spaces")
+      status <- statusp.debug("statusp")
+      _ <- skipNonNewlineSpaces.debug("more spaces")
+      acount <- accountnamep.debug("account")
+    } yield (status, acount)
+    (
+      skipNonNewlineSpaces1.debug("first skipNonNewlineSpaces1"),
+      attempt(a),
+      skipNonNewlineSpaces.debug("spaces after account"),
+      option(amountp).debug("amount"),
+      skipNonNewlineSpaces.debug("spaces after amount"),
       //      option(balanceassertionp),
-      skipNonNewlineSpaces,
-      followingcommentp
-    ).zipped { (_, _, accountname, _, amount, _, _, comment) =>
-      posting.copy(account = accountname,
+      skipNonNewlineSpaces.debug("more spaces?"),
+      followingcommentp.debug("followingcommentp")
+    ).zipped { (_, b, _, amount, _, _, comment) =>
+      posting.copy(
+        status = b._1,
+        account = b._2,
         amount = amount.fold(missingMixedAmt)(a => mixedAmount(a)),
         //        balanceAssertion = massertion,
         comment = comment)
-    }
+    }.debug("postingggg")
   }
 
   val postingsp: Parsley[List[Posting]] = {
     many(postingp.label("postings")) // todo add year postings 
-  }
+  }.debug("posting")
 
   val transactionp: Parsley[Transaction] = {
     (
-      pos,
-      datep.label("transaction"),
+      pos.debug("pos"),
+      datep.debug("transaction"),
       lookAhead((spacenonewline <|> newline).label("whitespace or newline")).void,
       descriptionp,
       transactioncommentp,
       statusp,
       codep,
-      postingsp,
+      postingsp.debug("posting"),
       pos,
     ).zipped { (startPos, date, _, desc, comment, status, code, postings, endPos) =>
       val sourcePos = (startPos, endPos)
@@ -69,15 +79,15 @@ object JournalReader {
         comment = comment,
         postings = postings))
     }
-  }
+  }.debug("transactoin parse")
 
   private val journalp = {
     val addJournalItemP = {
       choice(transactionp.flatMap(t => r.modify(_.addTransaction(t))),
-        emptyorcommentlinep.void,
-        multilinecommentp.void)
-    }
-    many(addJournalItemP) *> eof *> r.get
+        emptyorcommentlinep.void.debug("empty line"),
+        multilinecommentp.void.debug("multilinecommentp")).debug("journal item")
+    }.debug("addJournalItemP")
+    many(addJournalItemP) *> eof.debug("end of line") *> r.get
   }
 
   case class ParseError(parseError: String) extends Exception {
@@ -103,7 +113,7 @@ object JournalReader {
 
   def initialiseAndParseJournal[F[_] : Sync](r: Reg[Journal])
                                             (parser: Parsley[Journal], file: String = "", content: String = ""): EitherT[F, String, Journal] = {
-    val initJournal = nulljournal.copy()
+    val initJournal = nulljournal
     val p = r.put(initJournal) *> parser
     for {
       parsedJournal <- EitherT {

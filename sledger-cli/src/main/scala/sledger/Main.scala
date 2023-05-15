@@ -29,8 +29,8 @@ object Main extends CommandIOApp(
 
   def evalCmd(run: Commands.CLIRun): IO[Unit] = {
     run.command match {
-      case Commands.Add => ().pure
-      case Commands.Balance => withJournalDo[IO, Unit](run.options, balance(run.options, _))
+      case Commands.Add => IO(())
+      case Commands.Balance => withJournalDo[IO, Unit](run.options, balance[IO](run.options, _))
     }
   }
 

@@ -64,7 +64,9 @@ object ReportOptions {
                       accountListMode: AccountListMode,
                       sortAmount: Boolean,
                       drop: Int,
+                      noTotal: Boolean,
                       date2: Boolean,
+                      color: Boolean,
                       normalbalance: Option[NormalSign],
                       layout: Layout
                     )
@@ -82,7 +84,9 @@ object ReportOptions {
     accountListMode = defaultAccountListMode,
     sortAmount = false,
     drop = 0,
+    noTotal = false,
     date2 = false,
+    color = false,
     normalbalance = None,
     layout = LayoutWide(None)
   )

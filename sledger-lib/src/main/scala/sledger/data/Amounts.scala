@@ -23,7 +23,7 @@ object Amounts {
 
   case class AmountDisplayOpts(
                                 displayPrice: Boolean = true,
-//                                displayColour: Boolean = false, //todo color?
+                                displayColour: Boolean = false, //todo color?
                                 displayZeroCommodity: Boolean = false,
                                 displayThousandsSep: Boolean = true,
                                 displayOneLine: Boolean = false,
@@ -34,6 +34,7 @@ object Amounts {
 
   val noColour: AmountDisplayOpts = AmountDisplayOpts(displayPrice = false) // default
   val noPrice: AmountDisplayOpts = noColour.copy(displayPrice = false)
+  // amount and mixedamount in 1 line, no price
   val oneLine: AmountDisplayOpts = noColour.copy(displayOneLine = true, displayPrice = true)
 
   sealed trait AmountPrecision
@@ -331,7 +332,7 @@ object Amounts {
     divideMixedAmount(mas.length, maSum(mas))
   
   def divideMixedAmount(n: BigDecimal, ma: MixedAmount): MixedAmount =
-    transformMixedAmount(n / _, ma)
+    transformMixedAmount(_ / n, ma)
     
   def unifyMixedAmount(ma: MixedAmount): Option[Amount] = {
     def combine(amount: Amount, result: Amount): Option[Amount] = {
@@ -369,6 +370,9 @@ object Amounts {
     mixedAmount.mixed.values.toList
   }
 
+  def maCommodities(mixedAmount: MixedAmount): Set[CommoditySymbol] = 
+    (if (mixedAmount.mixed.isEmpty) List.empty else amounts(mixedAmount)).map(_.commodity).toSet
+  
   def withPrecision(amount: Amount, precision: AmountPrecision): Amount =
     amount.copy(style = amount.style.copy(precision = precision))
 

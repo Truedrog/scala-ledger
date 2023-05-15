@@ -96,7 +96,6 @@ class BalancingTest extends CatsEffectSuite {
       )
     ).map(_.postings.last.amount)
     val expected = Right(mixedAmount(usd(-1)))
-    println(actual)
     assertEquals(actual, expected)
   }
   test("isTransactionBalanced") {

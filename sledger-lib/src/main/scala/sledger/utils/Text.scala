@@ -1,11 +1,33 @@
 package sledger.utils
 
 import io.github.akiomik.seaw.implicits._
+import sledger.data.AccountNames.AccountName
 
 import scala.annotation.tailrec
 
 object Text {
+  def unlinesB(builders: List[StringBuilder]): StringBuilder =
+    builders.foldLeft(new StringBuilder) { (acc, builder) =>
+      acc.append(builder).append('\n')
+    }
 
+  def formatText(leftJustified: Boolean, minWidth: Option[Int], maxWidth: Option[Int], acctname: AccountName): String = {
+    def justify(line: String, width: Int): String = {
+      if (line.length >= width) line
+      else if (leftJustified) line.padTo(width, ' ')
+      else line.reverse.padTo(width, ' ').reverse
+    }
+
+    def clip(line: String): String = maxWidth.fold(line)(n => line.take(n))
+
+    val pad: String => String = minWidth.fold(identity[String](_))(n => justify(_, n))
+
+    val lines = if (acctname.isEmpty) List("") else acctname.linesIterator.toList
+    val formattedLines = lines.map(line => pad(clip(line)))
+
+    formattedLines.mkString("\n")
+  }
+  
   def fitText(mminwidth:Option[Int], mmaxwidth: Option[Int], ellipsify: Boolean, rightside: Boolean)(text:String): String = {
     
     val clip: String => String = s => {

@@ -90,7 +90,7 @@ object Dates {
       case (_, DaysOfWeek(days@(n::_)), ds) =>
         val (s, e) = dateSpanSplitLimits(nthdayofweekcontaining(n, _:LocalDate), addDays(1), ds)
         val starts = days.map(d => nthdayofweekcontaining(n, s.plusDays(d - n)))
-        val bdrys = (0 to 6).flatMap(n => starts.map(d => d.plusDays(n))).toList
+        val bdrys = (0 to 7).flatMap(n => starts.map(d => d.plusDays(n))).toList
         spansFromBoundaries(e, bdrys)
     }
   }
@@ -216,16 +216,17 @@ object Dates {
       }
     }
 
-    def groupByCols(spans: List[DateSpan], rows: List[(LocalDate, A)]): List[(DateSpan, List[A])] = spans match {
-      case Nil => Nil
-      case c :: cs =>
-        if (rows.isEmpty) {
-          if (showempty) (c, Nil) :: groupByCols(cs, Nil)
-          else Nil
-        } else {
-          val (matches, later) = rows.span(p => spanEnd(c).forall(e => e.compareTo(p._1) > 0))
-          (c, matches.map(_._2)) :: groupByCols(cs, later)
-        }
+    def groupByCols(spans: List[DateSpan], rows: List[(LocalDate, A)]): List[(DateSpan, List[A])] = {
+      (spans, rows) match {
+        case (Nil, _) => List.empty
+        case (c :: cs, Nil) => if(showempty) {
+          (c, List.empty) +: groupByCols(cs, List.empty)
+        } else List.empty
+        case (c :: cs, ps) => {
+          val (matches, later) = ps.span(p => spanEnd(c).forall(e => e.isAfter(p._1)))
+          (c, matches.map(_._2)) +: groupByCols(cs, later)
+        } 
+      }
     }
 
     val xs = ps
@@ -238,9 +239,11 @@ object Dates {
   def spanContainsDate(ds: DateSpan, date: LocalDate): Boolean = {
     (ds, date) match {
       case (DateSpan(None, None), _) => true
-      case (DateSpan(None, Some(e)), d) => d.isBefore(fromEFDay(e))
+      case (DateSpan(None, Some(e)), d) => !d.isAfter(fromEFDay(e))
       case (DateSpan(Some(b), None), d) => !d.isBefore(fromEFDay(b))
-      case (DateSpan(Some(b), Some(e)), d) => !d.isBefore(fromEFDay(b)) && d.isBefore(fromEFDay(e))
+      case (DateSpan(Some(start), Some(end)), d) => {
+        !d.isBefore(fromEFDay(start)) && !d.isAfter(fromEFDay(end))
+      }
     }
   }
   

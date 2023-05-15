@@ -121,6 +121,7 @@ object Queries {
   }
 
   def matchesPosting(q: Query, posting: Posting): Boolean = {
+    
     (q, posting) match {
       case (Not(query), p) => matchesPosting(query, p)
       case (Any, _) => true

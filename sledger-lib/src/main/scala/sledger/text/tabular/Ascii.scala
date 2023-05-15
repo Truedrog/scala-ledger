@@ -151,7 +151,7 @@ object Ascii {
         prop = properties).combineAll 
         
     val unlinesB = (builders: List[StringBuilder]) =>
-      Foldable[List].foldMap(builders) {a => a |+| new StringBuilder("""\n""")}
+      Foldable[List].foldMap(builders) {a => a |+| new StringBuilder('\n')}
 
     unlinesB
       .compose(addBorders)

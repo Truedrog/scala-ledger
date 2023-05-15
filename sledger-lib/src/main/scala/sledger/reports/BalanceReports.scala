@@ -1,5 +1,4 @@
 package sledger.reports
-
 import cats.syntax.all._
 import sledger.Queries.Query.{And, Date, Date2}
 import sledger.Queries._
@@ -43,29 +42,29 @@ object BalanceReports {
     val colps = getPostingsByColumn(spec, journal, colspans)
     println("colps", colps)
 
-    val startbals = startingBalances(spec, journal, startingPostings(spec, journal, reportspan))
-    println("startbals", startbals)
+//    val startbals = startingBalances(spec, journal, startingPostings(spec, journal, reportspan))
+//    println("startbals", startbals) // todo maybe add later
 
-    val report = generateMultiBalanceReport(spec, journal, Set.empty, colps, startbals)
-//    println("multiBalanceReportWith", report)
+    val report = generateMultiBalanceReport(spec, journal, Set.empty, colps)
+    pprint.pprintln(("multiBalanceReportWith", report))
     report
   }
   def generateMultiBalanceReport(spec: Spec,
                                  journal: Journal,
                                  unelidableaccts: Set[AccountName],
                                  colps: List[(DateSpan, List[Posting])],
-                                 startbals: HashMap[AccountName, Account]): MultiBalanceReport = {
+                                 startbals: HashMap[AccountName, Account] = HashMap.empty): MultiBalanceReport = {
     val matrix = calculateReportMatrix(spec, journal, startbals, colps)
     val displayNames = displayedAccounts(spec, unelidableaccts, matrix)
     println("displayNames", displayNames)
     val rows = buildReportRow(spec.options, displayNames, matrix)
-//    println("rows", rows)
+    pprint.pprintln(("rows", rows))
 
     val totalsrow = calculateTotalRows(spec.options, rows)
-//    println("totalsrow", totalsrow)
+    println("totalsrow", totalsrow)
 
     val sortedRows = sortRows(spec.options, journal, rows)
-//    println("sortedRows", sortedRows)
+    pprint.pprintln(("sortedRows", sortedRows))
 
     reportPercent(spec.options, PeriodicReport(colps.map(_._1), sortedRows, totalsrow))
   }
@@ -130,7 +129,7 @@ object BalanceReports {
 
     val colamts = rows.filter(isTopRow).map(_.amounts).transpose
     val coltotals = colamts.map(maSum)
-//    println("coltotals", coltotals)
+    println("coltotals", coltotals)
 
     val grandTotal = options.balanceAccum match {
       case ReportOptions.PerPeriod => maSum(coltotals)
@@ -318,14 +317,13 @@ object BalanceReports {
 
   def calculateReportMatrix(spec: Spec,
                             journal: Journal,
-                            startbals: HashMap[ClippedAccountName, Account],
+                            startbals: HashMap[ClippedAccountName, Account] = HashMap.empty,
                             colps: List[(DateSpan, List[Posting])]): HashMap[ClippedAccountName, Map[DateSpan, Account]] = {
     val colspans = colps.map(_._1)
     val zeros = Map.from(for {
       spn <- colspans
     } yield (spn, nullact))
     println("zeros", zeros)
-    println("colps", colps)
     val acctApplyBoth: (MixedAmount => MixedAmount) => Account => Account = f => a =>
       a.copy(ibalance = f(a.ibalance), ebalance = f(a.ebalance))
     val avalue = acctApplyBoth.compose(Function.const(identity[MixedAmount]))
@@ -334,13 +332,14 @@ object BalanceReports {
     println("colacctchanges", colacctchanges)
     val acctchanges: HashMap[AccountName, Map[DateSpan, Account]] = transposeMap(colacctchanges)
     println("acctchanges", acctchanges)
-    val map1 = HashMap.from(acctchanges.view.mapValues(a => a ++ zeros).toList)
-    val map2 = HashMap.from(startbals.view.mapValues(_ => zeros).toList)
-    val allchanges = map1 ++ map2
-
+//    val map2 = HashMap.from(startbals.view.mapValues (_ => zeros))
+    val allchanges = HashMap.from(acctchanges.toSeq.map {case (k, v) => k -> ( zeros ++ v)})
+   
     def rowbals(name: ClippedAccountName, unvaluedChanges: Map[DateSpan, Account]): Map[DateSpan, Account] = {
       val rowbals = spec.options.balanceAccum match {
-        case ReportOptions.PerPeriod => unvaluedChanges.map { case (d, a) => d -> avalue.apply(d).apply(a) }
+        case ReportOptions.PerPeriod => unvaluedChanges.map { case (d, a) =>
+          d -> avalue.apply(d).apply(a)
+        }
       }
       println("rowbals", rowbals)
       rowbals

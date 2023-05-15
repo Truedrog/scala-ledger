@@ -12,6 +12,7 @@ lazy val compilerOptions = Seq(
 lazy val commonSettings = Seq(
   scalacOptions ++= compilerOptions,
   libraryDependencies ++= Seq(
+    "com.lihaoyi" %% "pprint" % "0.8.1",
     "org.typelevel" %% "cats-effect" % "3.4.8",
     "org.typelevel" %% "munit-cats-effect-3" % "1.0.7" % Test,
     "org.typelevel" %% "cats-effect-kernel" % "3.4.7",

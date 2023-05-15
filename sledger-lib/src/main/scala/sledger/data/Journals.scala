@@ -115,6 +115,7 @@ object Journals {
 
   private def journalStyleInfluencingAmounts(journal: Journal): List[Amount] = {
     val l = journalPostings(journal).flatMap(p => amountsRaw(p.amount)).map(Some(_)).flatMap(_.toList)
+    println("journalStyleInfluencingAmounts", journalPostings(journal))
     println("journalStyleInfluencingAmounts", l)
     l
   }
@@ -123,7 +124,7 @@ object Journals {
     commodityStylesFromAmounts(journalStyleInfluencingAmounts(journal)) match {
       case Left(value) => Left(value)
       case Right(cs) => Right(journal.copy(inferredCommodities = {
-        println("journalInferCommodityStyles") 
+        println("journalInferCommodityStyles", cs) 
         cs
       } ))
     }
@@ -178,8 +179,8 @@ object Journals {
   } else {
     journalDateSpanHelper(Some(SecondaryDate), journal)
   }
-  
-  def journalDateSpanBoth(journal: Journal) = journalDateSpanHelper(None, journal)
+
+  def journalDateSpanBoth(journal: Journal): DateSpan = journalDateSpanHelper(None, journal)
   
   def journalDateSpanHelper(mwd: Option[WhichDate], journal: Journal): DateSpan = {
     def getpdate(p: Posting) = mwd match {
@@ -197,8 +198,8 @@ object Journals {
     val tdates = txns.flatMap(gettdate)
     val pdates = txns.flatMap(_.postings).flatMap(getpdate)
     val dates = pdates ++ tdates
-    
-    DateSpan(dates.minOption.map(Exact), dates.maxOption.map(Exact))
+    println(tdates, pdates)
+    DateSpan(dates.minOption.map(Exact), dates.maxOption.map(a => Exact(a.plusDays(1))))
   }
 
   def filterJournalPostings(query: Query, journal: Journal): Journal = {
