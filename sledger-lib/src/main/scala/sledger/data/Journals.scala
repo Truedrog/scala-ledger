@@ -115,8 +115,7 @@ object Journals {
 
   private def journalStyleInfluencingAmounts(journal: Journal): List[Amount] = {
     val l = journalPostings(journal).flatMap(p => amountsRaw(p.amount)).map(Some(_)).flatMap(_.toList)
-    println("journalStyleInfluencingAmounts", journalPostings(journal))
-    println("journalStyleInfluencingAmounts", l)
+//    println("journalStyleInfluencingAmounts", l)
     l
   }
 
@@ -124,7 +123,7 @@ object Journals {
     commodityStylesFromAmounts(journalStyleInfluencingAmounts(journal)) match {
       case Left(value) => Left(value)
       case Right(cs) => Right(journal.copy(inferredCommodities = {
-        println("journalInferCommodityStyles", cs) 
+//        println("journalInferCommodityStyles", cs) 
         cs
       } ))
     }
@@ -198,12 +197,11 @@ object Journals {
     val tdates = txns.flatMap(gettdate)
     val pdates = txns.flatMap(_.postings).flatMap(getpdate)
     val dates = pdates ++ tdates
-    println(tdates, pdates)
     DateSpan(dates.minOption.map(Exact), dates.maxOption.map(a => Exact(a.plusDays(1))))
   }
 
   def filterJournalPostings(query: Query, journal: Journal): Journal = {
-    println("reportq", query)
+//    println("reportq", query)
     journal.copy(transactions = journal.transactions
       .map(t => filterTransactionPostingsExtra(journalAccountType(journal, _), query, t)))
   }

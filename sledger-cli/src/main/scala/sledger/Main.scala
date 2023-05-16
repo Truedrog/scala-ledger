@@ -17,7 +17,7 @@ object Main extends CommandIOApp(
   version = "1.0.0"
 ) {
 
-  def withJournalDo[F[_] : Sync, A](cliOpts: CliOpts, f: Journal => F[A]): F[A] =
+  private def withJournalDo[F[_] : Sync, A](cliOpts: CliOpts, f: Journal => F[A]): F[A] =
     for {
       jp <- journalFilePathFromOpts(cliOpts)
       j <- readJournalFile(cliOpts.inputOpts, jp.toString).value
@@ -27,7 +27,7 @@ object Main extends CommandIOApp(
       )
     } yield result
 
-  def evalCmd(run: Commands.CLIRun): IO[Unit] = {
+  private def evalCmd(run: Commands.CLIRun): IO[Unit] = {
     run.command match {
       case Commands.Add => IO(())
       case Commands.Balance => withJournalDo[IO, Unit](run.options, balance[IO](run.options, _))
@@ -42,4 +42,3 @@ object Main extends CommandIOApp(
     }
   }
 }
-

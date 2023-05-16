@@ -25,7 +25,6 @@ object JournalReader {
   private val r = Reg.make[Journal]
 
   val postingp: Parsley[Posting] = {
-    println("posting parse")
     val a = for {
       _ <- skipNonNewlineSpaces
       status <- statusp

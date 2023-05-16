@@ -40,13 +40,13 @@ object BalanceReports {
 //    println("reportopts", spec)
 
     val colps = getPostingsByColumn(spec, journal, colspans)
-    println("colps", colps)
+//    println("colps", colps)
 
 //    val startbals = startingBalances(spec, journal, startingPostings(spec, journal, reportspan))
 //    println("startbals", startbals) // todo maybe add later
 
     val report = generateMultiBalanceReport(spec, journal, Set.empty, colps)
-    pprint.pprintln(("multiBalanceReportWith", report))
+//    pprint.pprintln(("multiBalanceReportWith", report))
     report
   }
   def generateMultiBalanceReport(spec: Spec,
@@ -56,15 +56,15 @@ object BalanceReports {
                                  startbals: HashMap[AccountName, Account] = HashMap.empty): MultiBalanceReport = {
     val matrix = calculateReportMatrix(spec, journal, startbals, colps)
     val displayNames = displayedAccounts(spec, unelidableaccts, matrix)
-    println("displayNames", displayNames)
+//    println("displayNames", displayNames)
     val rows = buildReportRow(spec.options, displayNames, matrix)
-    pprint.pprintln(("rows", rows))
+//    pprint.pprintln(("rows", rows))
 
-    val totalsrow = calculateTotalRows(spec.options, rows)
-    println("totalsrow", totalsrow)
-
-    val sortedRows = sortRows(spec.options, journal, rows)
-    pprint.pprintln(("sortedRows", sortedRows))
+    lazy val sortedRows = sortRows(spec.options, journal, rows)
+//    pprint.pprintln(("sortedRows", sortedRows))
+    
+    lazy val totalsrow = calculateTotalRows(spec.options, rows)
+//    pprint.pprintln(("totalsrow", totalsrow))
 
     reportPercent(spec.options, PeriodicReport(colps.map(_._1), sortedRows, totalsrow))
   }
@@ -116,20 +116,20 @@ object BalanceReports {
   }
 
   def calculateTotalRows(options: Options, rows: List[MultiBalanceReportRow]): PeriodicReportRow[Unit, MixedAmount] = {
-    val flat = options.accountListMode match {
-      case ReportOptions.ALFlat => true
-      case ReportOptions.ALTree => false
+    val tree = options.accountListMode match {
+      case ReportOptions.ALFlat => false
+      case ReportOptions.ALTree => true
     }
 
     def isTopRow[A](row: PeriodicReportRow[DisplayName, A]): Boolean = {
       val parents = expandAccountName(periodicReportRowFullName(row)).init
       val rowMap = HashMap.from(rows.map(row => periodicReportRowFullName(row) -> row))
-      flat || parents.exists(a => rowMap.contains(a))
+      !tree || !parents.exists(a => rowMap.contains(a))
     }
 
     val colamts = rows.filter(isTopRow).map(_.amounts).transpose
     val coltotals = colamts.map(maSum)
-    println("coltotals", coltotals)
+//    println("coltotals", coltotals)
 
     val grandTotal = options.balanceAccum match {
       case ReportOptions.PerPeriod => maSum(coltotals)
@@ -165,13 +165,13 @@ object BalanceReports {
   def getPostingsByColumn(spec: Spec, journal: Journal, colspans: List[DateSpan]): List[(DateSpan, List[Posting])] = {
     val getDate = postingDateOrDate2(whichDate(spec.options), _)
     val ps = getPostings(spec, journal)
-    println("getPostingsByColumn", ps)
+//    println("getPostingsByColumn", ps)
     groupByDateSpan(true, getDate, colspans, ps)
   }
 
   def getPostings(spec: Spec, journal: Journal): List[Posting] = {
     val query = filterQuery(!queryIsDepth(_), spec.query)
-    println("depthless", query)
+//    println("depthless", query)
     val filtered = filterJournalPostings(query, journal)
     journalPostings(filtered)
   }
@@ -185,7 +185,7 @@ object BalanceReports {
   def startingPostings(spec: Spec, journal: Journal, reportspan: DateSpan): List[Posting] = {
 
     val datelessq = filterQuery(!queryIsDateOrDate2(_), spec.query)
-    println("datelessq", datelessq)
+//    println("datelessq", datelessq)
     val precedingspan = DateSpan(None, spanStart(reportspan).map(Exact))
     val precedingspanq = (if (spec.options.date2) Date2 else Date) {
       precedingspan match {
@@ -194,7 +194,7 @@ object BalanceReports {
       }
     }
     val startbalq = And(List(datelessq, precedingspanq))
-    println("startbalq", startbalq)
+//    println("startbalq", startbalq)
 
     val precedingperiod = dateSpanAsPeriod(spanIntersect(precedingspan, periodAsDateSpan(spec.options.period))) 
     //todo valuation?
@@ -217,7 +217,7 @@ object BalanceReports {
   def acctChanges(spec: Spec, journal: Journal, ps: List[Posting]): HashMap[ClippedAccountName, Account] = {
     def filterbydepth(accts: List[Account]): List[Account] = {
       val depthq = filterQuery(queryIsDepth, spec.query)
-      println("depthq", depthq)
+//      println("depthq", depthq)
       spec.options.accountListMode match {
         case ALTree => accts.filter(a => matchesAccount(depthq, a.name))
         case ALFlat => clipAccountsAndAggregate(queryDepth(depthq), accts).filter(a => 0 < a.numposting)
@@ -262,7 +262,7 @@ object BalanceReports {
         xs.forall(a => mixedAmountLooksZero(f(a)))
       }
 
-      d <= qdepth && unelidableaccts(name) || keepWhenEmpty(amts) || isZeroRow(balance, amts)
+      d <= qdepth && (unelidableaccts(name) || (spec.options.empty && keepWhenEmpty(amts)) || !isZeroRow(balance, amts))
     }
 
     val numbSubs = subaccountTallies(valuedaccts.filter { case (k, v) =>
@@ -286,14 +286,13 @@ object BalanceReports {
     }
 
     def displayedName(name: String): DisplayName = {
-      val notDisplayed = !displayedAccts.contains(_:AccountName)
       val level = 0.max(accountNameLevel(name) - spec.options.drop)
       val parents = parentAccountNames(name).take(level - 1)
       val boringParents = if (spec.options.noElide) 0 else {
-        parents.count(notDisplayed)
+        parents.count(a => !displayedAccts.contains(a))
       }
       val droppedName = accountNameDrop(spec.options.drop, name)
-      val leaf = accountNameFromComponents(droppedName +: parents.takeWhile(notDisplayed).map(accountLeafName).reverse)
+      val leaf = accountNameFromComponents((droppedName :: parents.takeWhile { a => !displayedAccts.contains(a) }).map(accountLeafName).reverse)
       spec.options.accountListMode match {
         case ReportOptions.ALTree => DisplayName(name, leaf, 0.max(level - boringParents))
         case ReportOptions.ALFlat => DisplayName(name, droppedName, 1)
@@ -323,15 +322,14 @@ object BalanceReports {
     val zeros = Map.from(for {
       spn <- colspans
     } yield (spn, nullact))
-    println("zeros", zeros)
     val acctApplyBoth: (MixedAmount => MixedAmount) => Account => Account = f => a =>
       a.copy(ibalance = f(a.ibalance), ebalance = f(a.ebalance))
     val avalue = acctApplyBoth.compose(Function.const(identity[MixedAmount]))
     val colacctchanges: List[(DateSpan, HashMap[ClippedAccountName, Account])] =
       colps.map { c => c.bimap(x => identity(x), xs => acctChanges(spec, journal, xs)) }
-    println("colacctchanges", colacctchanges)
+//    println("colacctchanges", colacctchanges)
     val acctchanges: HashMap[AccountName, Map[DateSpan, Account]] = transposeMap(colacctchanges)
-    println("acctchanges", acctchanges)
+//    println("acctchanges", acctchanges)
 //    val map2 = HashMap.from(startbals.view.mapValues (_ => zeros))
     val allchanges = HashMap.from(acctchanges.toSeq.map {case (k, v) => k -> ( zeros ++ v)})
    
@@ -341,7 +339,7 @@ object BalanceReports {
           d -> avalue.apply(d).apply(a)
         }
       }
-      println("rowbals", rowbals)
+//      println("rowbals", rowbals)
       rowbals
     }
 

@@ -66,6 +66,7 @@ object ReportOptions {
                       drop: Int,
                       noTotal: Boolean,
                       date2: Boolean,
+                      empty: Boolean,
                       color: Boolean,
                       normalbalance: Option[NormalSign],
                       layout: Layout
@@ -78,6 +79,7 @@ object ReportOptions {
     depth = None,
     format = defaultBalanceLineFormat,
     noElide = false,
+    empty = false,
     pretty = false,
     balanceCalc = defaultBalanceCalculation,
     balanceAccum = defaultBalanceAccumm,
@@ -104,23 +106,23 @@ object ReportOptions {
   def reporSpanHelper(secondary: Boolean, journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) = {
     //todo this is requested span specified by various options args if any
     val requested = nulldatespan
-    println("requested", requested)
+//    println("requested", requested)
     val journalspan = if (secondary) journalDateSpanBoth(journal) else journalDateSpan(spec.options.date2, journal)
-    println("journalspan", journalspan)
+//    println("journalspan", journalspan)
     val requested1 = spanDefaultsFrom(requested, spanUnion(journalspan, nulldatespan))
-    println("requested1", requested1)
+//    println("requested1", requested1)
 
     val intervalspans = {
       val adjust = spanStart(requested).isEmpty
       splitSpan(adjust, spec.options.interval, requested1)
     }
-    println("intervalspans", intervalspans)
+//    println("intervalspans", intervalspans)
 
     val reportSpan = DateSpan(
       intervalspans.headOption.flatMap(a => spanStart(a).map(Exact)),
       intervalspans.lastOption.flatMap(a => spanEnd(a).map(Exact))
     )
-    println("reportSpan", reportSpan)
+//    println("reportSpan", reportSpan)
 
     (reportSpan, intervalspans)
   }
