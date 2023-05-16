@@ -1,25 +1,25 @@
 package sledger.read
 
 import cats._
-import cats.syntax.all._
 import cats.derived._
+import cats.syntax.all._
 import parsley.Parsley
 import parsley.Parsley.{attempt, join, lookAhead, notFollowedBy, pure}
-import parsley.character.{char, digit, endOfLine, isSpace, newline, satisfy, string}
-import parsley.combinator.{attemptChoice, between, eof, many, manyUntil, option, optionalAs}
-import parsley.position.offset
-import parsley.implicits.zipped._
-import parsley.errors.combinator._
 import parsley.cats.instances._
-
-import java.time.LocalDate
-import scala.util.Try
-import scala.Function.const
+import parsley.character._
+import parsley.combinator._
+import parsley.errors.combinator._
+import parsley.implicits.zipped._
+import parsley.position.offset
 import sledger._
 import sledger.data.AccountNames.AccountName
 import sledger.data.Amounts._
 import sledger.data.Dates._
-import sledger.utils.Parse.{eolof, isLineCommentStart, isNewline, skipNonNewlineSpaces, skipNonNewlineSpaces1, skipNonNewlineSpacesb, spacenonewline, takeWhileP, takeWhileP1}
+import sledger.utils.Parse._
+
+import java.time.LocalDate
+import scala.Function.const
+import scala.util.Try
 
 object Common {
 
@@ -76,22 +76,21 @@ object Common {
         val sameLine_ = if (sameLine.isEmpty && nextLines.nonEmpty) {
           List()
         } else sameLine
-        (sameLine_ ++ nextLines).foldLeft(List.empty[String]) { (acc, t) =>
-          t :: """\n""" :: acc
-        }.mkString.strip()
+        (sameLine_ ++ nextLines).map(_.strip()).mkString("", "\n", "\n")
       }
   }
   val followingcommentp = followingcommentp_(takeWhileP(a => a != '\n'))
   val transactioncommentp = followingcommentp // todo tags
   val noncommenttextp: Parsley[String] = takeWhileP(c => !isSameLineCommentStart(c) && !isNewline(c))
-    .map(_.stripMargin)
+    .map(_.strip)
 
   val descriptionp: Parsley[String] = noncommenttextp
   val statusp: Parsley[Status] = {
-    attemptChoice(skipNonNewlineSpaces *> char('*') #> Cleared,
+    attemptChoice(
+      skipNonNewlineSpaces *> char('*') #> Cleared,
       skipNonNewlineSpaces *> char('!') #> Pending,
       pure(()) #> Unmarked
-    ).label("cleared status")
+    ).label("status")
   }
 
   val codep: Parsley[String] = {
@@ -110,11 +109,11 @@ object Common {
   }
   val singlespacep: Parsley[Unit] = spacenonewline *> notFollowedBy(spacenonewline)
   val singlespacedtextsatisfying1p: (Char => Boolean) => Parsley[String] = (f: Char => Boolean) => {
-    val partp = takeWhileP1(c => f(c) && !isSpace(c))
+    val partp = takeWhileP1(c => f(c) && !isWhitespace(c))
 
     for {
       firstPart <- partp
-      otherParts <- many(attempt(singlespacep) *> partp)
+      otherParts <- many(attempt(singlespacep *> partp))
     } yield (firstPart +: otherParts).mkString(" ")
   }
   val singlespacedtext1p: Parsley[String] = singlespacedtextsatisfying1p(const(true))

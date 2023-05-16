@@ -26,13 +26,12 @@ object JournalReader {
 
   val postingp: Parsley[Posting] = {
     val a = for {
-      _ <- skipNonNewlineSpaces
+      _ <- skipNonNewlineSpaces1
       status <- statusp
       _ <- skipNonNewlineSpaces
-      acount <- accountnamep
-    } yield (status, acount)
+      account <- accountnamep
+    } yield (status, account)
     (
-      skipNonNewlineSpaces1,
       attempt(a),
       skipNonNewlineSpaces,
       option(amountp),
@@ -40,7 +39,7 @@ object JournalReader {
       //      option(balanceassertionp),
       skipNonNewlineSpaces,
       followingcommentp
-    ).zipped { (_, b, _, amount, _, _, comment) =>
+    ).zipped { (b, _, amount, _, _, comment) =>
       posting.copy(
         status = b._1,
         account = b._2,
