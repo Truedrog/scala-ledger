@@ -8,6 +8,7 @@ import com.monovore.decline.effect._
 import sledger.Read.readJournalFile
 import sledger.cli.CliOptions.{CliOpts, journalFilePathFromOpts}
 import sledger.cli.Commands
+import sledger.cli.commands.Add.add
 import sledger.cli.commands.Balance.balance
 import sledger.data.Journals.Journal
 
@@ -29,8 +30,8 @@ object Main extends CommandIOApp(
 
   private def evalCmd(run: Commands.CLIRun): IO[Unit] = {
     run.command match {
-      case Commands.Add => IO(())
-      case Commands.Balance => withJournalDo[IO, Unit](run.options, balance[IO](run.options, _))
+      case Commands.Add => withJournalDo[IO, Unit](run.options, add(run.options, _))
+      case Commands.Balance => withJournalDo[IO, Unit](run.options, balance(run.options, _))
     }
   }
 

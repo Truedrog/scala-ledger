@@ -18,14 +18,14 @@ import sledger.utils.Text.{formatText, unlinesB}
 
 object Balance {
 
-  def balance[F[_] : Sync : Console](cliOps: CliOpts, j: Journal): F[Unit] = {
+  def balance(cliOps: CliOpts, j: Journal): IO[Unit] = {
     val spec = cliOps.reportSpec
     spec.options.balanceCalc match {
       case CalcChange =>
         val report = balanceReport(spec, j)
-        val render = balanceReportAsText(spec.options, report).result()
-        Console[F].println(render)
-      case ro => Console[F].errorln(s"Not implemented yet for $ro report")
+        val render = balanceReportAsText[IO](spec.options, report).result()
+        Console[IO].println(render)
+      case ro => Console[IO].errorln(s"Not implemented yet for $ro report")
     }
   }
 

@@ -376,6 +376,8 @@ object Amounts {
   def withPrecision(amount: Amount, precision: AmountPrecision): Amount =
     amount.copy(style = amount.style.copy(precision = precision))
 
+  def showAmount(amount: Amount): String = showAmountB(noColour, amount).builder.result()
+  
   def showAmountB(showOpts: AmountDisplayOpts, amount: Amount): WideBuilder = {
     val wrap: WideBuilder => WideBuilder = wb => {
       val s = wb.builder

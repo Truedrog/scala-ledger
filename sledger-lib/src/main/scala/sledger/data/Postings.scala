@@ -202,20 +202,19 @@ object Postings {
     mwidth.fold(accountName)(accountName.take(_))
 
   def renderCommentLines(t: String): List[String] = {
+    val lines = t.linesIterator.toList
 
-    val comment = (t: String) => "; " + t
-    val lines = t.linesIterator.toSeq
     lines match {
-      case Seq() => Seq().toList
-      case Seq(l) => Seq(commentSpace(comment(l))).toList
-      case "" +: ls => ls.map(a => lineIndent(comment(a))).toList
-      case l +: ls => commentSpace(comment(l)) +: ls.map(a => lineIndent(comment(a))).toList
+      case Nil => List.empty[String]
+      case l :: Nil => List(commentSpace(lineIndent("; " + l)))
+      case "" :: ls => "" :: ls.map(line => lineIndent(commentSpace("; " + line)))
+      case l :: ls => commentSpace(lineIndent("; " + l)) :: ls.map(line => lineIndent(commentSpace("; " + line)))
     }
   }
+  
+  def lineIndent(line: String): String = "    " + line
 
-  def lineIndent(t: String): String = "    " + t
-
-  def commentSpace(t: String): String = "  " + t
+  def commentSpace(comment: String): String = "  " + comment
 
   def postingApplyCommodityStyles(styles: Map[CommoditySymbol, AmountStyle], posting: Posting): Posting =
     posting.copy(amount = styledMixedAmount(styles, posting.amount))

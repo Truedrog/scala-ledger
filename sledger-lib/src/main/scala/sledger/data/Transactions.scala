@@ -65,11 +65,10 @@ object Transactions {
         case Nil => ("", List())
         case c :: cs => (c, cs)
       }
-    val newline = new StringBuilder("\n")  
-    val descriptionline = showTransactionLineFirstPart(t).stripTrailing() + List(desc, samelinecomment).mkString
-    new StringBuilder(descriptionline)
-      .combine(newline)
-      .combine(Foldable[List].foldMap(newlinecomments)(s => new StringBuilder(s)).combine(newline))
+      val newline = new StringBuilder("\n")  
+    val descriptionline = showTransactionLineFirstPart(t) |+| List(desc, samelinecomment).mkString.stripTrailing()
+    new StringBuilder(descriptionline).combine(newline)
+      .combine(Foldable[List].foldMap(newlinecomments)(s => new StringBuilder().append(s).combine(newline))) // append cause unneeded newline
       .combine(Foldable[List].foldMap(postingsAsLines(onelineamounts, t.postings))(s => new StringBuilder(s).combine(newline)))
       .combine(newline)
   }
