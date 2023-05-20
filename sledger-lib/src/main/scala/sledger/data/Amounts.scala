@@ -1,7 +1,7 @@
 package sledger.data
 
-import cats.data._
 import cats._
+import cats.data._
 import cats.syntax.all._
 import io.estatico.newtype.macros.newtype
 import sledger.text.WideString.{WideBuilder, wbFromString}
@@ -374,8 +374,12 @@ object Amounts {
     (if (mixedAmount.mixed.isEmpty) List.empty else amounts(mixedAmount)).map(_.commodity).toSet
   
   def withPrecision(amount: Amount, precision: AmountPrecision): Amount =
-    amount.copy(style = amount.style.copy(precision = precision))
+    amountSetPrecision(precision, amount)
 
+  def amountSetPrecision(p: AmountPrecision, amount: Amount): Amount = {
+    amount.copy(style = amount.style.copy(precision = p))
+  }
+  
   def showAmount(amount: Amount): String = showAmountB(noColour, amount).builder.result()
   
   def showAmountB(showOpts: AmountDisplayOpts, amount: Amount): WideBuilder = {
@@ -436,6 +440,14 @@ object Amounts {
         addSep(NonEmptyList(s, s1), intLen, strPart)
     }
   }
+  
+  def showAmountDebug(amount: Amount): String = {
+      amount match {
+        case Amount("AUTO", _, _) => "(missing)"
+        case Amount(commodity, quantity, style) => 
+          s"Amount (commodity=${commodity.show}, quantity=${quantity.show}, style=${style.show})"
+      }
+  }
 
   def showAmountQuantity(amount: Amount): WideBuilder = {
     val rounded = amountRoundedQuantity(amount)
@@ -480,6 +492,12 @@ object Amounts {
   
   def canonicaliseMixedAmount(styles: Map[CommoditySymbol, AmountStyle], mixedAmount: MixedAmount): MixedAmount = {
     mapMixedAmountUnsafe(a => canonicaliseAmount(styles, a), mixedAmount)
+  }
+  
+  def showMixedAmountDebug(ma: MixedAmount): String = {
+    if(ma === missingMixedAmt) {
+      "(missing)"
+    } else "Mixed [" + amounts(ma).map(showAmountDebug).intercalate("\n       ")
   }
   
   def showMixedAmount(ma: MixedAmount): String = {
@@ -595,6 +613,10 @@ object Amounts {
     }
 
     amounts.mapAccumulate(-sep)(display)._2
+  }
+  
+  def mixedAmountSetPrecision(p: AmountPrecision, ma: MixedAmount): MixedAmount = {
+    mapMixedAmountUnsafe(a => amountSetPrecision(p, a), ma)
   }
   
   def mixedAmountStripPrices(ma: MixedAmount): MixedAmount = {
