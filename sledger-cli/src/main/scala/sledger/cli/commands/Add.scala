@@ -2,7 +2,7 @@ package sledger.cli.commands
 
 import cats.effect._
 import cats.effect.std.Console
-import org.jline.reader.{EndOfFileException, LineReader, LineReaderBuilder}
+import org.jline.reader.{EndOfFileException, LineReader, LineReaderBuilder, UserInterruptException}
 import org.jline.terminal.TerminalBuilder
 import parsley.character.{char, item}
 import parsley.combinator.{eof, many, option}
@@ -10,11 +10,11 @@ import parsley.implicits.zipped._
 import sledger.Unmarked
 import sledger.cli.CliOptions.{CliOpts, defcliopts}
 import sledger.cli.commands.Add.AddingStage._
-import sledger.data.Amounts.{Amount, mixedAmount, showAmount}
+import sledger.data.Amounts._
 import sledger.data.Balancing.{balanceTransaction, defBalancingOptions}
 import sledger.data.Dates.{EFDay, Exact, fromEFDay, nulldate}
 import sledger.data.Journals.{Journal, nulljournal}
-import sledger.data.Postings.{Posting, nullposting, posting}
+import sledger.data.Postings.{Posting, nullposting, posting, sumPostings}
 import sledger.data.Transactions.{Transaction, nulltransaction, showTransaction}
 import sledger.read.Common.{accountnamep, amountp, codep, datep}
 import sledger.utils.Parse.skipNonNewlineSpaces
@@ -24,7 +24,7 @@ import java.time.LocalDate
 import scala.Function.const
 
 object Add {
-  private case class RestartTransactionException() extends Exception
+  private class RestartTransactionException() extends Exception
 
   private case class EntryState(
                                  opts: CliOpts,
@@ -70,7 +70,11 @@ object Add {
     Resource
       .make {
         val reader = for {
-          terminal <- IO(TerminalBuilder.terminal())
+          terminal <- IO(TerminalBuilder.builder()
+            .system(true)
+            .dumb(false)
+            .jna(true)
+            .build())
           lineReader <- IO(LineReaderBuilder.builder().terminal(terminal).build())
         } yield lineReader
         reader
@@ -91,32 +95,31 @@ object Add {
               s"To end a transaction, enter . when prompted.\n" +
               s"To quit, enter . at a date prompt or press control-d or control-c.")
           _ <- getAndAdd(reader, es).recover {
-            case _: EndOfFileException =>
-              IO(()) // just exit
+            case _: UserInterruptException => IO(()) // just exit
+            case _: EndOfFileException => IO(()) // just exit
           }
         } yield ()
       }
 
-  private def getAndAdd(reader: LineReader, es: EntryState): IO[Unit] = es match {
-    case es =>
-      val defaultPrevInput = PrevInput(
-        prevDateAndCode = None,
-        prevDescAndComment = None,
-        prevAccount = List.empty,
-        prevAmountAndComment = List.empty
-      )
+  private def getAndAdd(reader: LineReader, es: EntryState): IO[Unit] = {
+    val defaultPrevInput = PrevInput(
+      prevDateAndCode = None,
+      prevDescAndComment = None,
+      prevAccount = List.empty,
+      prevAmountAndComment = List.empty
+    )
 
-      confirmedTransactionWizard(reader, defaultPrevInput, es, List.empty).flatMap {
-        case Some(t) =>
-          journalAddTransaction(es.journal, t).flatMap { j =>
-            IO.println("Saved.") >>
-              IO.println("Starting the next transaction (. or ctrl-D/ctrl-C to quit)") >>
-              getAndAdd(reader, es.copy(journal = j, defDate = t.date))
-          }
-        case None => IO.raiseError(new RuntimeException("Could not interpret the input, restarting"))
-      }.recover {
-        case _: RestartTransactionException => IO.println("Restarting this transaction.") >> getAndAdd(reader, es)
-      }
+    confirmedTransactionWizard(reader, defaultPrevInput, es, List.empty).flatMap {
+      case None => IO.raiseError(new RuntimeException("Could not interpret the input, restarting"))
+      case Some(t) =>
+        journalAddTransaction(es.journal, t).flatMap { j =>
+          IO.println("Saved.") >>
+            IO.println("Starting the next transaction (. or ctrl-D/ctrl-C to quit)") >>
+            getAndAdd(reader, es.copy(journal = j, defDate = t.date))
+        }
+    }.recoverWith {
+      case _: RestartTransactionException => IO.println("Restarting this transaction.") >> getAndAdd(reader, es)
+    }
   }
 
   private def runPrompt(reader: LineReader, prompt: String, default: String = ""): IO[String] =
@@ -157,7 +160,7 @@ object Add {
     val prevDescAndComment = prevInput.prevDescAndComment.getOrElse("")
     runPrompt(reader, s"Description${showDefault(default)}: ", prevDescAndComment).flatMap { s =>
       if (s == "<") IO.pure(None) else {
-        val descAndComment = if(s.isEmpty && default.nonEmpty) default else ""
+        val descAndComment = if (s.isEmpty) default else s
         val (desc, comment) = {
           val (a, b) = descAndComment.span(_ != ';')
           (a.trim, b.dropWhile(_ == ';').trim)
@@ -186,10 +189,11 @@ object Add {
     val pNum = entryState.postings.length + 1
     val canFinish = entryState.postings.nonEmpty && postingsBalanced(entryState.postings)
 
-    val endMessage = if (canFinish) "or . or enter to finish this transaction" else ""
+    val endMessage = if (canFinish) " or . or enter to finish this transaction" else ""
 
     val prevAccount = prevInput.prevAccount
     val prevAccountPrompt = prevAccount.lift(entryState.postings.length).getOrElse("")
+
     def go(canFinish: Boolean, prevInput: PrevInput, entryState: EntryState): IO[Option[String]] = {
 
       runPrompt(reader,
@@ -217,18 +221,28 @@ object Add {
       }
     }
 
+    val balancingAmt = maNegate(sumPostings(entryState.postings))
+    val balancingAmtFirstCommodity = mixed(amounts(balancingAmt).take(1))
+
+    def showAmt(mixedAmount: MixedAmount): String =
+      showMixedAmountB(noColour, mixedAmountSetPrecision(NaturalPrecision, mixedAmount)).builder.result()
+    
     val pNum = entryState.postings.length + 1
     val prevAmountAndComment = prevInput.prevAmountAndComment
     val prevAmount = prevAmountAndComment.lift(entryState.postings.length).getOrElse("")
-    def go(prevInput: PrevInput, entryState: EntryState): IO[Option[(Amount, String)]] = {
+    val default = if(pNum > 1 && !mixedAmountLooksZero(balancingAmt)) showAmt(balancingAmtFirstCommodity) else ""
 
+    def go(prevInput: PrevInput, entryState: EntryState): IO[Option[(Amount, String)]] = {
       runPrompt(reader,
-        s"Amount $pNum: ",
+        s"Amount $pNum${showDefault(default)}: ",
         prevAmount
-      ).flatMap(s => parseAmountAndComment(s) match {
-        case Some(value) => IO.pure(value)
-        case None => IO.println("A valid hledger amount is required. Eg: 1, $2, 3 EUR.") >>
-          go(prevInput, entryState)
+      ).flatMap(s => {
+        val amount = if(s.isEmpty && default.length > 1) default else s 
+        parseAmountAndComment(amount) match {
+          case Some(value) => IO.pure(value)
+          case None => IO.println("A valid hledger amount is required. Eg: 1, $2, 3 EUR.") >>
+            go(prevInput, entryState)
+        }
       })
     }
 
@@ -263,7 +277,6 @@ object Add {
         xs :+ newElem
       }
     }
-//    println(s"$prevInput, args ${es.args}, today ${es.today}, defdate ${es.defDate}, postings ${es.postings}, stack ${addingStage}")
 
     (prevInput, es, addingStage) match {
       case (prev, es, Nil) => confirmedTransactionWizard(reader, prev, es, List(EnterDateAndCode))
@@ -336,7 +349,7 @@ object Add {
           }
           case Some(account) =>
             val prevAccount = replaceNthOrAppend(es.postings.length, account, prevInput.prevAccount)
-            
+
             confirmedTransactionWizard(
               reader,
               prevInput.copy(prevAccount = prevAccount),
@@ -353,7 +366,7 @@ object Add {
             confirmedTransactionWizard(
               reader,
               prevInput,
-              es.copy(postings = if(es.postings.nonEmpty) es.postings.init else List.empty),
+              es.copy(postings = if (es.postings.nonEmpty) es.postings.init else List.empty),
               stack.dropWhile(notPrevAmountAndNotEnterDesc)
             )
         }
@@ -382,7 +395,7 @@ object Add {
 
         case EndStage(t) => saveTransactionPrompt(reader, t).flatMap {
           case Some('y') => IO.pure(Some(t))
-          case Some(_) => IO.raiseError(RestartTransactionException())
+          case Some(_) => throw new RestartTransactionException()
           case None => confirmedTransactionWizard(reader, prevInput, es, stack.drop(2))
         }
       }

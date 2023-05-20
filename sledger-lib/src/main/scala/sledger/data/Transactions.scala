@@ -65,7 +65,7 @@ object Transactions {
         case Nil => ("", List())
         case c :: cs => (c, cs)
       }
-      val newline = new StringBuilder("\n")  
+    val newline = new StringBuilder("\n")  
     val descriptionline = showTransactionLineFirstPart(t) |+| List(desc, samelinecomment).mkString.stripTrailing()
     new StringBuilder(descriptionline).combine(newline)
       .combine(Foldable[List].foldMap(newlinecomments)(s => new StringBuilder().append(s).combine(newline))) // append cause unneeded newline
