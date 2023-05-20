@@ -1,7 +1,7 @@
 package sledger.utils
 
-import io.github.akiomik.seaw.implicits._
 import sledger.data.AccountNames.AccountName
+import sledger.text.WideString.realLength
 
 import scala.annotation.tailrec
 
@@ -33,7 +33,7 @@ object Text {
     val clip: String => String = s => {
       val ellipsis = if (ellipsify) ".." else ""
       mmaxwidth match {
-        case Some(w) if(s.width > w) => {
+        case Some(w) if(realLength(s) > w) => {
           if (rightside) 
             textTakeWidth(w - ellipsis.length, s) + ellipsis 
           else 
@@ -44,7 +44,7 @@ object Text {
       }
     }
     val pad: String => String = s => {
-      val sw = s.width
+      val sw = realLength(s)
       mminwidth match {
         case Some(w) if(sw < w) => {
           if (rightside) {
@@ -68,7 +68,7 @@ object Text {
         sb.toString
       } else {
         val c = t.head
-        val cw = c.toString.width
+        val cw = realLength(c.toString)
         if (cw <= w) {
           textTakeWidthHelper(w - cw, t.tail, sb.append(c))
         } else {

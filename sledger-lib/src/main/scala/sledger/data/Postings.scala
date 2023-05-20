@@ -1,20 +1,19 @@
 package sledger.data
 
-import cats.{Group => _, _}
 import cats.syntax.all._
-import io.github.akiomik.seaw.implicits._
+import cats.{Group => _, _}
 import sledger._
 import sledger.data.AccountNames.AccountName
 import sledger.data.Amounts._
 import sledger.data.Dates.{PrimaryDate, SecondaryDate, WhichDate, nulldate}
 import sledger.data.Transactions.Transaction
-import sledger.text.WideString.WideBuilder
+import sledger.text.WideString.{WideBuilder, realLength}
 import sledger.text.tabular.Ascii._
 import sledger.text.tabular.Tabular.{Group, Header, NoLine}
 import sledger.utils.Text.fitText
 import sledger.utils.maximumBound
 
-import java.time.{DayOfWeek, LocalDate}
+import java.time.LocalDate
 
 object Postings {
   case class Posting(
@@ -163,7 +162,7 @@ object Postings {
       p => pstatusprefix(p) + pacctstr(p)
     val statusandaccount: String =
       lineIndent(fitText(Some(2 + acctwidth), None, ellipsify = false, rightside = true)(pstatusandacct(p)))
-    val thisacctwidth = pacctstr(p).width
+    val thisacctwidth = realLength(pacctstr(p))
     val shownAmounts: List[WideBuilder] = {
       if (elideamount) {
         Monoid[List[WideBuilder]].empty

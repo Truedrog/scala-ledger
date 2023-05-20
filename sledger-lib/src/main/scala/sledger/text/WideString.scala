@@ -2,7 +2,7 @@ package sledger.text
 
 import cats._
 import cats.syntax.all._
-import io.github.akiomik.seaw.implicits._
+import org.jline.utils.AttributedString
 import sledger._
 
 object WideString {
@@ -16,8 +16,10 @@ object WideString {
       WideBuilder(x.builder |+| y.builder, x.width + y.width)
     }
   }
+
+  def realLength(input: String): Int = new AttributedString(input).columnLength()
   
   def wideBuilderToString(wb: WideBuilder): String = wb.builder.result()
 
-  def wbFromString(t: String): WideBuilder = WideBuilder(new StringBuilder(t), t.width)
+  def wbFromString(t: String): WideBuilder = WideBuilder(new StringBuilder(t), realLength(t))
 }
