@@ -36,7 +36,7 @@ object CliOptions {
 
   val mapOptsToReportSpec: Opts[Spec] = {
     val emptyFlag = Opts.flag("empty", "Show items with zero amount, normally hidden", "E").orFalse
-    val color = Opts.flag(long="color", help="Should color-supporting commands use ANSI color codes in text output." ).orFalse
+    val color = Opts.flag(long="color", help="Should color-supporting commands use ANSI color codes in text output." ).orTrue
     val pretty = Opts.flag("pretty", s"Show prettier output, e.g. using unicode box -drawing characters.").orFalse
     val depth = Opts.option[Int]("depth", s"hide accounts/postings deeper than this").orNone
     
