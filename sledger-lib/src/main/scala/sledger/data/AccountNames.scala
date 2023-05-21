@@ -137,20 +137,20 @@ object AccountNames {
   def aname(account: Account): AccountName = account.name
   
   def clipAccountsAndAggregate(n: Option[Int], as: List[Account]): List[Account] = {
-    n match {
-      case Some(d) =>
+    (n, as) match {
+      case (None, as) => as
+      case (Some(d), as) =>
         val clipped = for {
           a <- as
         } yield a.copy(name = clipOrEllipsifyAccountName(Some(d), a.name))
 
-        for {
-          group <- clipped.groupBy(_.name).values.toList
-          if group.nonEmpty
-          a = group.head
-        } yield a.copy(ebalance = maSum(group.map(_.ebalance)))
-      case None => as
+        val combined = for {
+          same <- clipped.groupBy(_.name).values.toList
+          if same.nonEmpty
+          a = same.head
+        } yield a.copy(ebalance = same.map(_.ebalance).sum)
+        combined
     }
-
   } 
   
   def expandAccountNames(as: List[AccountName]): List[AccountName] = {

@@ -2,7 +2,7 @@ package sledger.cli
 
 import cats.syntax.all._
 import com.monovore.decline.Opts
-import sledger.cli.CliOptions.{CliOpts, defcliopts, flatTreeFlag, rawToCliOpts, reportSpecFlags}
+import sledger.cli.CliOptions.{CliOpts, flatTreeFlag, generalOpts, mapOptsToReportSpec}
 
 object Commands {
   final case class CLIRun(
@@ -22,21 +22,20 @@ object Commands {
       help = "Balance command"
     ) {
       val treeOrFlat = flatTreeFlag(true)
-      val spec = reportSpecFlags
+      val spec = mapOptsToReportSpec
+      val opts = generalOpts
 
-      val opts = rawToCliOpts
-
-      (opts,  treeOrFlat, spec)
+      (opts, treeOrFlat, spec)
         .mapN { (opts, tof, rspec) =>
           opts.copy(reportSpec = rspec
-            .copy(options = opts.reportSpec.options.copy(accountListMode = tof)))
+            .copy(options = rspec.options.copy(accountListMode = tof)))
         }
     }.map(opts => CLIRun(Balance, opts))
 
     val add = Opts.subcommand(
       name = "add",
       help = "Prompt for transactions and add them to the journal."
-    )(rawToCliOpts).map(opts => CLIRun(Add, opts))
+    )(generalOpts).map(opts => CLIRun(Add, opts))
 
     balance orElse add
   }

@@ -1,14 +1,15 @@
 package sledger.reports
 
-import sledger.Queries.Query
-import sledger.Queries.Query.Any
-
-import java.time.LocalDate
-import sledger.{NormalSign, Status}
+import sledger.Queries.Query._
+import sledger.Queries.{Query, simplifyQuery}
 import sledger.data.Dates._
 import sledger.data.Journals.{Journal, journalDateSpan, journalDateSpanBoth}
+import sledger.data.Period.periodAsDateSpan
 import sledger.data.StringFormat.defaultBalanceLineFormat
 import sledger.data.{Period, PeriodAll, StringFormat}
+import sledger.{NormalSign, Status}
+
+import java.time.LocalDate
 
 object ReportOptions {
   sealed trait BalanceCalculation
@@ -106,24 +107,51 @@ object ReportOptions {
   def reporSpanHelper(secondary: Boolean, journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) = {
     //todo this is requested span specified by various options args if any
     val requested = nulldatespan
-//    println("requested", requested)
+    //    println("requested", requested)
     val journalspan = if (secondary) journalDateSpanBoth(journal) else journalDateSpan(spec.options.date2, journal)
-//    println("journalspan", journalspan)
+    //    println("journalspan", journalspan)
     val requested1 = spanDefaultsFrom(requested, spanUnion(journalspan, nulldatespan))
-//    println("requested1", requested1)
+    //    println("requested1", requested1)
 
     val intervalspans = {
       val adjust = spanStart(requested).isEmpty
       splitSpan(adjust, spec.options.interval, requested1)
     }
-//    println("intervalspans", intervalspans)
+    //    println("intervalspans", intervalspans)
 
     val reportSpan = DateSpan(
       intervalspans.headOption.flatMap(a => spanStart(a).map(Exact)),
       intervalspans.lastOption.flatMap(a => spanEnd(a).map(Exact))
     )
-//    println("reportSpan", reportSpan)
+    //    println("reportSpan", reportSpan)
 
     (reportSpan, intervalspans)
+  }
+
+  def queryFromFlags(options: Options): Query = {
+    def consOption[A, B](f: A => B, option: Option[A], xs: List[B]): List[B] = {
+      option match {
+        case Some(a) => f(a) :: xs
+        case None => xs
+      }
+    }
+
+    simplifyQuery(
+      And(
+        consOption(
+          Depth,
+          options.depth,
+          List((if (options.date2) Date2 else Date)(periodAsDateSpan(options.period)))
+        )
+      )
+    )
+  }
+
+  def reportOptsToSpec(options: Options): Spec = {
+    Spec(
+      options,
+      LocalDate.now(),
+      simplifyQuery(And(List(queryFromFlags(options))))
+    )
   }
 }

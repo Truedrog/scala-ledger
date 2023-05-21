@@ -100,8 +100,8 @@ object Queries {
     def go(query: Query): List[Int] = {
       query match {
         case Depth(level) => List(level)
-        case Or(queries) => queries.flatMap(q => queryDepth(q))
-        case And(queries) => queries.flatMap(q => queryDepth(q))
+        case Or(queries) => queries.flatMap(q => go(q))
+        case And(queries) => queries.flatMap(q => go(q))
         case _ => List()
       }
     }

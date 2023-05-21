@@ -96,7 +96,7 @@ object Accounts {
       val (m, b1) = b
       (n + m, maPlus(a1, b1))
     }
-    val summed = ps.foldRight(HashMap.empty[AccountName, (Int, MixedAmount)])((p, acc) =>
+    val summed = ps.foldRight(HashMap.empty[AccountName, (Int, MixedAmount)])((p,acc) =>
       acc.updatedWith(p.account) {
         case Some(value) => Some(addAndIncrement(value, (1, p.amount)))
         case None => Some((1, p.amount))
@@ -107,7 +107,6 @@ object Accounts {
       val (numps, total) = summed.getOrElse(a.name, (0, nullMixedAmount))
       a.copy(numposting = numps, ebalance = total)
     }
-
     val acctstree = accountTree("root", summed.keys.toList)
     val acctswithebals = mapAccounts(setnumpsebalance)(acctstree)
     

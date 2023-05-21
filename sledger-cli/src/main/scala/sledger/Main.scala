@@ -15,7 +15,7 @@ import sledger.data.Journals.Journal
 object Main extends CommandIOApp(
   name = "sledger",
   header = "sledger command line",
-  version = "1.0.0"
+  version = "0.0.1"
 ) {
 
   private def withJournalDo[F[_] : Sync, A](cliOpts: CliOpts, f: Journal => F[A]): F[A] =

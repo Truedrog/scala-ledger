@@ -28,7 +28,7 @@ object BalanceReports {
     val report = multiBalanceReport(spec, journal)
     val rows = for {
       row <- report.rows
-    } yield ((periodicReportRowFullName(row), periodicReportRowDisplayName(row), periodicReportRowDepth(row), row.total))
+    } yield (periodicReportRowFullName(row), periodicReportRowDisplayName(row), periodicReportRowDepth(row), row.total)
     val total = report.totals.total
     (rows, total)
   }
@@ -220,7 +220,7 @@ object BalanceReports {
 //      println("depthq", depthq)
       spec.options.accountListMode match {
         case ALTree => accts.filter(a => matchesAccount(depthq, a.name))
-        case ALFlat => clipAccountsAndAggregate(queryDepth(depthq), accts).filter(a => 0 < a.numposting)
+        case ALFlat => clipAccountsAndAggregate(queryDepth(depthq), accts.filter(a => 0 < a.numposting))
       }
     }
 
@@ -250,11 +250,11 @@ object BalanceReports {
     def isInteresting(name: String, amts: List[Account]): Boolean = {
       val d = accountNameLevel(name)
       val keepWhenEmpty: List[Account] => Boolean = amts => spec.options.accountListMode match {
-        case ReportOptions.ALFlat => Function.const(true)(amts)
+        case ReportOptions.ALFlat => true
         case ReportOptions.ALTree => amts.forall(_.subs.nonEmpty)
       }
       val balance: Account => MixedAmount = a => spec.options.accountListMode match {
-        case ReportOptions.ALTree if (d == qdepth) => a.ibalance
+        case ReportOptions.ALTree if d == qdepth => a.ibalance
         case _ => a.ebalance
       }
 

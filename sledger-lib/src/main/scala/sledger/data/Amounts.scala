@@ -10,6 +10,7 @@ import sledger.utils._
 
 import scala.collection.decorators._
 import scala.math.BigDecimal.RoundingMode
+import scala.util.Try
 
 object Amounts {
   def isNonsimpleCommodityChar: Char => Boolean = (c: Char) => {
@@ -127,9 +128,9 @@ object Amounts {
 
       override def sign(x: Amount): Amount = x.copy(quantity = Numeric[BigDecimal].sign(x.quantity))
 
-      override def parseString(str: String): Option[Amount] = ???
+      override def parseString(str: String): Option[Amount] = Try(nullamount.copy(quantity = BigDecimal(str))).toOption
 
-      override def compare(x: Amount, y: Amount): Int = ???
+      override def compare(x: Amount, y: Amount): Int = x.quantity.compare(y.quantity)
     }
   }
 //  sealed trait AmountPrice
@@ -278,6 +279,33 @@ object Amounts {
 
       override def combine(x: MixedAmount, y: MixedAmount): MixedAmount = maPlus(x, y)
     }
+
+    implicit val mixedAmountNum: Numeric[MixedAmount] = new Numeric[MixedAmount] {
+      import Amounts.Amount.amountNum
+      override def plus(x: MixedAmount, y: MixedAmount): MixedAmount = maPlus(x, y)
+
+      override def minus(x: MixedAmount, y: MixedAmount): MixedAmount = 
+        throw new Exception("error, mixed amounts do not support minus")
+
+      override def times(x: MixedAmount, y: MixedAmount): MixedAmount = 
+        throw new Exception("error, mixed amounts do not support multiplication")
+
+      override def negate(x: MixedAmount): MixedAmount = maNegate(x)
+
+      override def fromInt(x: Int): MixedAmount = mixedAmount(amountNum.fromInt(x)) 
+
+      override def parseString(str: String): Option[MixedAmount] = throw new Exception("error, mixed amounts do not support multiplication")
+
+      override def toInt(x: MixedAmount): Int = ???
+
+      override def toLong(x: MixedAmount): Long = ???
+
+      override def toFloat(x: MixedAmount): Float = ???
+
+      override def toDouble(x: MixedAmount): Double = ???
+
+      override def compare(x: MixedAmount, y: MixedAmount): Int = maCompare(x, y).toInt
+    }
   }
 
   def amountKey(amount: Amount): MixedAmountKeyNoPrice = MixedAmountKeyNoPrice(amount.commodity) 
@@ -301,7 +329,9 @@ object Amounts {
   def transformMixedAmount(f: BigDecimal => BigDecimal, mixedAmount: MixedAmount): MixedAmount =
     mapMixedAmountUnsafe(transformAmount(f, _), mixedAmount)
 
-  def mixedAmountLooksZero(mixedAmount: MixedAmount): Boolean = mixedAmount.mixed.values.toList.forall(amountLooksZero)
+  def mixedAmountLooksZero(mixedAmount: MixedAmount): Boolean = {
+    mixedAmount.mixed.values.toList.forall(amountLooksZero)
+  }
   
   def isNegativeMixedAmount(mixedAmount: MixedAmount): Option[Boolean] = {
     amounts(mixedAmount) match {
