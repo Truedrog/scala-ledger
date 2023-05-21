@@ -2,6 +2,7 @@ package sledger.cli.commands
 
 import cats.effect._
 import cats.effect.std.Console
+import fansi.Color.Green
 import org.jline.reader.{EndOfFileException, LineReader, LineReaderBuilder, UserInterruptException}
 import org.jline.terminal.TerminalBuilder
 import parsley.character.{char, item}
@@ -123,7 +124,7 @@ object Add {
   }
 
   private def runPrompt(reader: LineReader, prompt: String, default: String = ""): IO[String] =
-    IO(reader.readLine(prompt: String, null: Character, default))
+    IO(reader.readLine(Green(prompt).render: String, null: Character, Green(default).render))
 
   private def dateAndCodePrompt(reader: LineReader,
                                 prevInput: PrevInput, entryState: EntryState): IO[Option[(EFDay, String)]] = {
