@@ -39,7 +39,6 @@ lazy val commonSettings = Seq(
     "com.lihaoyi" %% "fansi" % "0.4.0",
     "com.lihaoyi" %% "pprint" % "0.8.1",
     "org.typelevel" %% "cats-effect" % "3.4.8",
-    "com.ibm.icu"    % "icu4j"     % "72.1",
     "org.typelevel" %% "munit-cats-effect-3" % "1.0.7" % Test,
     compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   ),
