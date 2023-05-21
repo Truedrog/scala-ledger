@@ -203,7 +203,7 @@ object Ascii {
       .map(_.fold(hsep, padcell))
       .transpose
       .map(x => addBorders(x.combineAll))
-      .intersperse(new StringBuilder("""\n""")).combineAll
+      .intersperse(new StringBuilder("\n")).combineAll
   }
   
   def renderHLine[A](vpos: VPos,

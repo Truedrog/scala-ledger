@@ -548,7 +548,7 @@ object Amounts {
   
   def showMixedAmountB(maDisplayOpts: AmountDisplayOpts, ma: MixedAmount): WideBuilder = {
     if (maDisplayOpts.displayOneLine) showMixedAmountOneLineB(maDisplayOpts, ma) else {
-      val sep = WideBuilder(new StringBuilder("""\n"""), 0)
+      val sep = WideBuilder(new StringBuilder("\n"), 0)
       val ls = showMixedAmountLinesB(maDisplayOpts, ma)
       val width = ls.map(_.width).headOption.getOrElse(0)
       WideBuilder(ls.intersperse(sep).combineAll.builder, width)
@@ -604,7 +604,7 @@ object Amounts {
   
   def showMixedAmountLinesB(maDisplayOpts: AmountDisplayOpts, ma: MixedAmount): List[WideBuilder] = {
     
-    val sep = WideBuilder(new StringBuilder("""\n"""), 0)
+    val sep = WideBuilder(new StringBuilder("\n"), 0)
 
     def elideTo(x: Int, xs: List[AmountDisplay]): List[AmountDisplay] = {
       val (short, long) = xs.partition(ad => ad.builder.width >= x)
