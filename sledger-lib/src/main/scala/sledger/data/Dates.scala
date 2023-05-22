@@ -54,7 +54,9 @@ object Dates {
   }
   
   def showDateSpan(ds: DateSpan): String = showPeriod(dateSpanAsPeriod(ds))  
+  
   val nulldatespan = DateSpan(None, None)
+  
   def spanStart(span: DateSpan): Option[LocalDate] = span.start.map(fromEFDay)
 
   def spanEnd(span: DateSpan): Option[LocalDate] = span.end.map(fromEFDay)
@@ -211,7 +213,7 @@ object Dates {
     def beforeStart(day: LocalDate): Boolean = {
       val start = colspans.headOption.flatMap(spanStart)
       start match {
-        case Some(d) => d.isBefore(day)
+        case Some(d) => d.isAfter(day)
         case None => true
       }
     }

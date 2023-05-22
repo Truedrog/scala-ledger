@@ -1,7 +1,7 @@
 package sledger.reports
 
 import sledger.Queries.Query._
-import sledger.Queries.{Query, simplifyQuery}
+import sledger.Queries._
 import sledger.data.Dates._
 import sledger.data.Journals.{Journal, journalDateSpan, journalDateSpanBoth}
 import sledger.data.Period.periodAsDateSpan
@@ -60,6 +60,7 @@ object ReportOptions {
                       format: StringFormat,
                       noElide: Boolean,
                       pretty: Boolean,
+                      queryString: List[String],
                       balanceCalc: BalanceCalculation,
                       balanceAccum: BalanceAccumulation,
                       accountListMode: AccountListMode,
@@ -82,6 +83,7 @@ object ReportOptions {
     noElide = false,
     empty = false,
     pretty = false,
+    queryString = List.empty,
     balanceCalc = defaultBalanceCalculation,
     balanceAccum = defaultBalanceAccumm,
     accountListMode = defaultAccountListMode,
@@ -99,19 +101,19 @@ object ReportOptions {
   val defaultSpec: Spec = Spec(defaultsOptions, nulldate, Any)
 
   def reportSpan(journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) = {
-    reporSpanHelper(secondary = false, journal, spec)
+    reportSpanHelper(bothdates = false, journal, spec)
   }
 
   def whichDate(options: Options): WhichDate = if (options.date2) SecondaryDate else PrimaryDate
 
-  def reporSpanHelper(secondary: Boolean, journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) = {
+  def reportSpanHelper(bothdates: Boolean, journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) = {
     //todo this is requested span specified by various options args if any
-    val requested = nulldatespan
-    //    println("requested", requested)
-    val journalspan = if (secondary) journalDateSpanBoth(journal) else journalDateSpan(spec.options.date2, journal)
-    //    println("journalspan", journalspan)
+    val requested = if(bothdates) queryDateSpan_(spec.query) else queryDateSpan(spec.options.date2, spec.query)
+    println("requested", requested)
+    val journalspan = if (bothdates) journalDateSpanBoth(journal) else journalDateSpan(spec.options.date2, journal)
+    println("journalspan", journalspan)
     val requested1 = spanDefaultsFrom(requested, spanUnion(journalspan, nulldatespan))
-    //    println("requested1", requested1)
+    println("requested1", requested1)
 
     val intervalspans = {
       val adjust = spanStart(requested).isEmpty
@@ -147,11 +149,12 @@ object ReportOptions {
     )
   }
 
-  def reportOptsToSpec(options: Options): Spec = {
-    Spec(
-      options,
-      LocalDate.now(),
-      simplifyQuery(And(List(queryFromFlags(options))))
-    )
-  }
+  def reportOptsToSpec(options: Options): Either[String, Spec] = for {
+    (q, _) <- parseQueryList(options.queryString)
+//    _ = println(s"query from opts and args: ${simplifyQuery(And(List(queryFromFlags(options), q)))}")
+  } yield Spec(
+    options,
+    LocalDate.now(),
+    simplifyQuery(And(List(queryFromFlags(options), q)))
+  )
 }

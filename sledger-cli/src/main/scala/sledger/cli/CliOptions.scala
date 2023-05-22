@@ -36,15 +36,21 @@ object CliOptions {
 
   val mapOptsToReportSpec: Opts[Spec] = {
     val emptyFlag = Opts.flag("empty", "Show items with zero amount, normally hidden", "E").orFalse
-    val color = Opts.flag(long="color", help="Should color-supporting commands use ANSI color codes in text output." ).orTrue
+    val color = Opts.flag(long = "color", help = "Should color-supporting commands use ANSI color codes in text output.").orTrue
     val pretty = Opts.flag("pretty", s"Show prettier output, e.g. using unicode box -drawing characters.").orFalse
     val depth = Opts.option[Int]("depth", s"hide accounts/postings deeper than this").orNone
-    
-    (emptyFlag, color, pretty, depth).mapN((ef, color, pretty, depth) => {
-      reportOptsToSpec(defaultsOptions.copy(empty = ef, color = color, pretty = pretty, depth = depth))
+    val queryString = Opts.arguments[String]("query").orEmpty
+
+    (emptyFlag, color, pretty, depth, queryString).mapN((ef, color, pretty, depth, queryString) => {
+      reportOptsToSpec(
+        defaultsOptions.copy(empty = ef, color = color, pretty = pretty, depth = depth, queryString = queryString)
+      ).fold(
+        left => throw new RuntimeException("Error:" + left),
+        spec => spec
+      )
     })
   }
-  
+
   val generalOpts: Opts[CliOpts] = {
     val fileOpt = Opts.option[String](
       "file",

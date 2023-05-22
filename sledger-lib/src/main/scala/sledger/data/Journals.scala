@@ -22,15 +22,16 @@ object Journals {
                       files: List[(String, String)],
                       transactions: List[Transaction],
                       declaredAccountTypes: Map[AccountType, List[AccountName]],
-                      inferredCommodities: Map[CommoditySymbol, AmountStyle], //    -- ^ commodities and formats inferred from journal amounts
+                      inferredCommodities: Map[CommoditySymbol, AmountStyle], // commodities and formats inferred from journal amounts
                       lastReadTime: LocalDateTime,
                       accountTypes: Map[AccountName, AccountType],
-//                      globalCommodityStyles: Map[CommoditySymbol, AmountStyle]
+                      //                      globalCommodityStyles: Map[CommoditySymbol, AmountStyle]
                     )
+
   object JournalOps {
     implicit class JournalExtensions(j: Journal) {
-//      def withGlobalCommodityStyles(styles: Map[CommoditySymbol, AmountStyle]): Journal =
-//        j.copy(globalCommodityStyles = styles)
+      //      def withGlobalCommodityStyles(styles: Map[CommoditySymbol, AmountStyle]): Journal =
+      //        j.copy(globalCommodityStyles = styles)
 
       def withLastReadTime(t: LocalDateTime): Journal =
         j.copy(lastReadTime = t)
@@ -45,11 +46,12 @@ object Journals {
 
       def applyCommodityStyles: Either[CommoditySymbol, Journal] =
         journalApplyCommodityStyles(j)
-        
+
       def addTransaction(transaction: Transaction): Journal = j.copy(transactions = transaction :: j.transactions)
+
       def numberTransactions: Journal = j.copy(transactions = j.transactions
         .zipWithIndex
-        .map{case (t, i) => t.copy(index = i+1)})
+        .map { case (t, i) => t.copy(index = i + 1) })
 
       def balanceTransactions: Either[String, Journal] = journalBalanceTransactions(defBalancingOptions, j)
     }
@@ -57,20 +59,19 @@ object Journals {
 
   private def journalApplyCommodityStyles(journal: Journal): Either[String, Journal] = {
 
-    def fixjournal(journal: Journal): Journal = {
-      val styles = journalCommodityStyles(journal)
-      journalMapPostings(p => postingApplyCommodityStyles(styles, p), journal)
-    }
-    journalInferCommodityStyles(journal).map(fixjournal)
+    journalInferCommodityStyles(journal).map(j => {
+      val styles = journalCommodityStyles(j)
+      journalMapPostings(p => postingApplyCommodityStyles(styles, p), j)
+    })
   }
-  
-    def journalCommodityStyles(journal: Journal): Map[CommoditySymbol, AmountStyle] = {     
-//    val globals = journal.globalCommodityStyles
+
+  def journalCommodityStyles(journal: Journal): Map[CommoditySymbol, AmountStyle] = {
+    //    val globals = journal.globalCommodityStyles
     val inferred = journal.inferredCommodities
-//    globals ++ inferred
+    //    globals ++ inferred
     inferred
   }
-  
+
   def journalPostings(journal: Journal): List[Posting] = journal.transactions.flatMap(_.postings)
 
   def journalAccountNamesUsed(journal: Journal): List[AccountName] =
@@ -80,8 +81,8 @@ object Journals {
     Foldable[List].foldMap(List(expandAccountNames(journalAccountNamesUsed(journal))))(a => a.distinct)
 
   def journalAccountType(journal: Journal, an: AccountName): Option[AccountType] =
-    accountNameType(journalAccountTypes(journal), an) 
-    
+    accountNameType(journalAccountTypes(journal), an)
+
   private def journalAccountTypes(journal: Journal): Map[AccountName, AccountType] = {
     def setTypes(mparenttype: Option[(AccountType, Boolean)], tree: Tree[AccountName]): Tree[(AccountName, Option[(AccountType, Boolean)])] = {
       tree match {
@@ -98,7 +99,7 @@ object Journals {
     }
 
     val t1 = setTypes(None, accountNameTreeFrom(journalAccountNames(journal)))
-    flatten(t1).flatMap {  
+    flatten(t1).flatMap {
       case (a, mac) => mac match {
         case Some((accountType, _)) => List((a, accountType))
         case None => List()
@@ -125,18 +126,18 @@ object Journals {
       case Right(cs) => Right(journal.copy(inferredCommodities = {
 //        println("journalInferCommodityStyles", cs) 
         cs
-      } ))
+      }))
     }
   }
 
-   private def commodityStylesFromAmounts(amounts: List[Amount]): Either[String, Map[CommoditySymbol, AmountStyle]] =
+  private def commodityStylesFromAmounts(amounts: List[Amount]): Either[String, Map[CommoditySymbol, AmountStyle]] =
     Right(amounts.foldLeft(Map.empty[CommoditySymbol, AmountStyle]) { (acc, a) =>
       acc.updatedWith(a.commodity) {
         case Some(existing) => Some(canonicalStyle(existing, a.style))
         case None => Some(a.style)
       }
     })
-  
+
   private def canonicalStyle(a: AmountStyle, b: AmountStyle): AmountStyle = {
     val prec = Order[AmountPrecision].max(a.precision, b.precision)
     val mgrps = a.digitgroups.orElse(b.digitgroups)
@@ -151,14 +152,15 @@ object Journals {
         case _ => asdecimalpoint.orElse(Some(defdecmark))
       }
     }
+
     val decmark = chooseDecimalMark(mgrps, a.decimalpoint.orElse(b.decimalpoint), defdecmark)
     a.copy(precision = prec, decimalpoint = decmark, digitgroups = mgrps)
   }
-  
+
   def journalMapPostings(f: Posting => Posting, journal: Journal): Journal = {
     journal.copy(transactions = journal.transactions.map(t => transactionMapPostings(f, t)))
   }
-  
+
   val nulljournal: Journal = Journal(
     parseDefaultYear = None,
     parsedDefaultCommodity = None,
@@ -169,10 +171,10 @@ object Journals {
     declaredAccountTypes = Map.empty,
     accountTypes = Map.empty,
     inferredCommodities = Map.empty,
-//  globalCommodityStyles = Map.empty
-//  finalcommentlines = ""
+    //  globalCommodityStyles = Map.empty
+    //  finalcommentlines = ""
   )
-  
+
   def journalDateSpan(secondary: Boolean, journal: Journal): DateSpan = if (!secondary) {
     journalDateSpanHelper(Some(PrimaryDate), journal)
   } else {
@@ -180,7 +182,7 @@ object Journals {
   }
 
   def journalDateSpanBoth(journal: Journal): DateSpan = journalDateSpanHelper(None, journal)
-  
+
   def journalDateSpanHelper(mwd: Option[WhichDate], journal: Journal): DateSpan = {
     def getpdate(p: Posting) = mwd match {
       case Some(PrimaryDate) => p.date1.toList
@@ -193,7 +195,8 @@ object Journals {
       case Some(SecondaryDate) => List(t.date2.getOrElse(t.date))
       case None => List(t.date) ++ t.date2.toList
     }
-    val txns  = journal.transactions
+
+    val txns = journal.transactions
     val tdates = txns.flatMap(gettdate)
     val pdates = txns.flatMap(_.postings).flatMap(getpdate)
     val dates = pdates ++ tdates
@@ -205,7 +208,7 @@ object Journals {
     journal.copy(transactions = journal.transactions
       .map(t => filterTransactionPostingsExtra(journalAccountType(journal, _), query, t)))
   }
-  
+
   def filterTransactionPostingsExtra(atypes: AccountName => Option[AccountType],
                                      query: Query, transaction: Transaction): Transaction = {
     transaction.copy(
@@ -228,7 +231,7 @@ object Journals {
           precedingcomment = "",
           postings = List(
             post("assets:bank:checking", usd(1)),
-            post("income:salary", if(explicit) usd(-1) else missingamt)
+            post("income:salary", if (explicit) usd(-1) else missingamt)
           )
         )
       },
@@ -286,7 +289,7 @@ object Journals {
       },
     )
   )
-  
+
   val sampleJournal: Journal = sampleJournalIsExplicit(true)
- 
+
 }
