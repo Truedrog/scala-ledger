@@ -124,7 +124,7 @@ object Add {
   }
 
   private def runPrompt(reader: LineReader, prompt: String, default: String = ""): IO[String] =
-    IO(reader.readLine(Green(prompt).render: String, null: Character, Green(default).render))
+    IO(reader.readLine(Green(prompt).render: String, null: Character, default))
 
   private def dateAndCodePrompt(reader: LineReader,
                                 prevInput: PrevInput, entryState: EntryState): IO[Option[(EFDay, String)]] = {
