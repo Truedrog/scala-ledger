@@ -23,4 +23,11 @@ object IO {
       }
     }
   }
+
+  def writeFile[F[_]: Sync](fileName: String, content: String): F[Unit] =
+    Resource
+      .fromAutoCloseable(Sync[F].delay(new BufferedWriter(new FileWriter(new File(fileName)))))
+      .use { writer =>
+        Sync[F].delay(writer.write(content))
+      }
 }

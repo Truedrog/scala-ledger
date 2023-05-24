@@ -309,11 +309,4 @@ object Ascii {
       case (_         , _         , _         , _         ) => pick("", "") (pretty)
     }
   }
-
-  /*
-   Add the second table below the first, discarding its column headings.
-   */
-  def concatTable[R, C, A](properties: Properties, table: Table[R, C, A], table1: Table[R, C, A]): Table[R, C, A] = {
-    Table(Group(properties, List(table.rh, table1.rh)), table.ch, table.cells ++ table1.cells)
-  }
 }

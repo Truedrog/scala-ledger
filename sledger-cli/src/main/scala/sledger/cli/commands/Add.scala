@@ -17,7 +17,7 @@ import sledger.data.Dates.{EFDay, Exact, fromEFDay, nulldate}
 import sledger.data.Journals.{Journal, nulljournal}
 import sledger.data.Postings.{Posting, nullposting, posting, sumPostings}
 import sledger.data.Transactions.{Transaction, nulltransaction, showTransaction}
-import sledger.read.Common.{accountnamep, amountp, codep, datep}
+import sledger.read.Common.{accountNamep, amountp, codep, datep}
 import sledger.utils.Parse.skipNonNewlineSpaces
 
 import java.nio.file.{Files, StandardOpenOption}
@@ -135,7 +135,8 @@ object Add {
 
       runPrompt(
         reader = reader,
-        prompt = s"Date${showDefault(defaultDate)}: ", default = prevInput.prevDateAndCode.getOrElse("")).flatMap { s =>
+        prompt = s"Date${showDefault(defaultDate)}: ", 
+        default = prevInput.prevDateAndCode.getOrElse("")).flatMap { s =>
         if (s == ".") IO.raiseError(new EndOfFileException()) else {
           val parser = (datep, option(codep), skipNonNewlineSpaces, eof).zipped { (date, mCode, _, _) =>
             (date, mCode.getOrElse(""))
@@ -182,7 +183,7 @@ object Add {
         case (_, ".") => Some(Some(".")) // end transaction
         case (true, "") => Some(Some("")) // no default, txn is balanced, end transaction
         case (_, s) =>
-          val parser = accountnamep <* eof
+          val parser = accountNamep <* eof
           parser.parse(s).toEither.fold(const(None), s => Some(s)).map(Some(_))
       }
     }

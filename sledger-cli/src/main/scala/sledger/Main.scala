@@ -5,7 +5,7 @@ import cats.effect.{ExitCode, IO, Sync}
 import cats.syntax.all._
 import com.monovore.decline._
 import com.monovore.decline.effect._
-import sledger.Read.readJournalFile
+import sledger.Read.{ensureJournalFileExists, readJournalFile}
 import sledger.cli.CliOptions.{CliOpts, journalFilePathFromOpts}
 import sledger.cli.Commands
 import sledger.cli.commands.Add.add
@@ -30,7 +30,11 @@ object Main extends CommandIOApp(
 
   private def evalCmd(run: Commands.CLIRun): IO[Unit] = {
     run.command match {
-      case Commands.Add => withJournalDo[IO, Unit](run.options, add(run.options, _))
+      case Commands.Add => for {
+        jp <- journalFilePathFromOpts[IO](run.options)
+        _ <- ensureJournalFileExists[IO](jp.toAbsolutePath.toString)
+        _ <- withJournalDo[IO, Unit](run.options, add(run.options, _))
+      } yield()
       case Commands.Balance => withJournalDo[IO, Unit](run.options, balance(run.options, _))
     }
   }

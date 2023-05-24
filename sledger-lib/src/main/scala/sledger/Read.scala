@@ -6,7 +6,7 @@ import cats.syntax.all._
 import sledger.data.InputOptions.InputOpts
 import sledger.data.Journals.Journal
 import sledger.read.JournalReader.reader
-import sledger.utils.IO.readFileOrStdin
+import sledger.utils.IO.{readFileOrStdin, writeFile}
 
 import java.nio.file.{Files, Path, Paths}
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
@@ -18,12 +18,12 @@ object Read {
   val journalEnvVar2 = "LEDGER"
   val journalDefaultFilename = ".sledger.journal"
 
-  private def handleIO[F[_]: Sync](f: F[String]): F[String] = {
+  private def handleIO[F[_] : Sync](f: F[String]): F[String] = {
     f.handleErrorWith {
       case NonFatal(_) => Sync[F].pure("")
     }
   }
-  
+
   def defaultJournalPath[F[_] : Sync]: F[String] = {
     for {
       s <- envJournalPath[F]
@@ -80,28 +80,16 @@ object Read {
     }
   }
 
-  def splitReaderPrefix(f: String): (Option[String], String) = {
-    val readerNames = List("journal")
-
-    val prefix = readerNames
-      .find(r => f.startsWith(r + ":"))
-      .map(r => (Some(r), f.drop(r.length + 1)))
-      .getOrElse((None, f))
-
-    prefix
-  }
-
-  def readJournal[F[_] : Sync](inputOpts: InputOpts,
-                               filepath: Option[String],
+  def readJournal[F[_] : Sync](filepath: Option[String],
                                content: String): EitherT[F, String, Journal] = {
-    reader(inputOpts, filepath, content)
+    reader(filepath, content)
   }
 
   def readJournalFile[F[_] : Sync](inputOptions: InputOpts, filePath: String): EitherT[F, String, Journal] = {
     for {
       _ <- EitherT.liftF(requireJournalFileExists(filePath))
       t <- EitherT.liftF(readFileOrStdin(filePath))
-      j <- readJournal(inputOptions, Some(filePath), t)
+      j <- readJournal(Some(filePath), t)
     } yield j
   }
 
@@ -128,14 +116,19 @@ object Read {
     } else {
       for {
         exists <- doesFileExist[F](filePath)
-        _ <- if (!exists) {
-          val errorMessage = s"Creating hledger journal file '$filePath'.\n"
-          Sync[F].delay(Console.err.println(errorMessage)) *> Sync[F].raiseError(new Exception(errorMessage))
-        } else {
+        _ <- if (!exists) createFileAndWriteContent(filePath) else {
           Sync[F].unit
         }
       } yield ()
     }
+  }
+
+  def createFileAndWriteContent[F[_] : Sync](filePath: String): F[Unit] = {
+    val errorMessage = s"Creating sledger journal file '$filePath'.\n"
+    for {
+      _ <- Sync[F].delay(Console.err.println(errorMessage))
+      _ <- newJournalContent.flatMap { c => writeFile(filePath, c) }
+    } yield ()
   }
 
   def doesFileExist[F[_] : Sync](filePath: String): F[Boolean] = {

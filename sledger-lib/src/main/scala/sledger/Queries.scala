@@ -67,7 +67,7 @@ object Queries {
       case s if s.startsWith("acct:") =>
         Try(toRegexCI(s.stripPrefix("acct:"))).toEither.leftMap(_.getMessage).map(s => Left(Acct(s)))
       case s => parseQueryTerm(defaultprefix + ":" + s)
-      case _ => Left("query not implemented")
+//      case _ => Left("query not implemented")
     }
   }
 

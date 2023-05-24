@@ -16,7 +16,7 @@ import sledger.data.Journals.JournalOps._
 import sledger.data.Journals._
 import sledger.data.Postings._
 import sledger.data.Transactions.{Transaction, txnTieKnot}
-import sledger.read.Common.{accountnamep, amountp, codep, datep, descriptionp, emptyorcommentlinep, followingcommentp, multilinecommentp, statusp, transactioncommentp}
+import sledger.read.Common.{accountNamep, amountp, codep, datep, descriptionp, emptyorcommentlinep, followingCommentp, multilineCommentp, statusp, transactionCommentp}
 import sledger.utils.Parse.{skipNonNewlineSpaces, skipNonNewlineSpaces1, spacenonewline}
 
 import java.time.LocalDateTime
@@ -25,26 +25,23 @@ object JournalReader {
   private val r = Reg.make[Journal]
 
   val postingp: Parsley[Posting] = {
-    val a = for {
-      _ <- skipNonNewlineSpaces1
-      status <- statusp
-      _ <- skipNonNewlineSpaces
-      account <- accountnamep
-    } yield (status, account)
     (
-      attempt(a),
+      attempt(for {
+        _ <- skipNonNewlineSpaces1
+        status <- statusp
+        _ <- skipNonNewlineSpaces
+        account <- accountNamep
+      } yield (status, account)),
       skipNonNewlineSpaces,
       option(amountp),
       skipNonNewlineSpaces,
-      //      option(balanceassertionp),
       skipNonNewlineSpaces,
-      followingcommentp
+      followingCommentp
     ).zipped { (b, _, amount, _, _, comment) =>
       posting.copy(
         status = b._1,
         account = b._2,
         amount = amount.fold(missingMixedAmt)(a => mixedAmount(a)),
-        //        balanceAssertion = massertion,
         comment = comment)
     }
   }
@@ -59,7 +56,7 @@ object JournalReader {
       datep,
       lookAhead((spacenonewline <|> newline).label("whitespace or newline")).void,
       descriptionp,
-      transactioncommentp,
+      transactionCommentp,
       statusp,
       codep,
       postingsp,
@@ -82,17 +79,12 @@ object JournalReader {
     val addJournalItemP = {
       choice(transactionp.flatMap(t => r.modify(_.addTransaction(t))),
         emptyorcommentlinep.void,
-        multilinecommentp.void)
+        multilineCommentp.void)
     }
     many(addJournalItemP) *> eof *> r.get
   }
 
-  case class ParseError(parseError: String) extends Exception {
-    override def getMessage: String = parseError
-  }
-
   def finalizeJournal[F[_] : Sync](file: String, content: String, pj: Journal): EitherT[F, String, Journal] = {
-    val definopts = defInputOpts
     import sledger.data.Journals.JournalOps._
     val t = Sync[F].delay(LocalDateTime.now())
     for {
@@ -109,7 +101,9 @@ object JournalReader {
   }
 
   def initialiseAndParseJournal[F[_] : Sync](r: Reg[Journal])
-                                            (parser: Parsley[Journal], file: String = "", content: String = ""): EitherT[F, String, Journal] = {
+                                            (parser: Parsley[Journal],
+                                             file: String = "",
+                                             content: String = ""): EitherT[F, String, Journal] = {
     val initJournal = nulljournal
     val p = r.put(initJournal) *> parser
     for {
@@ -120,7 +114,7 @@ object JournalReader {
     } yield j
   }
 
-  def reader[F[_] : Sync](inputOpts: InputOpts, mbpath: Option[String], content: String): EitherT[F, CommoditySymbol, Journal] = {
-    initialiseAndParseJournal(r)(journalp, mbpath.getOrElse("(string)"), content)
+  def reader[F[_] : Sync](mpath: Option[String], content: String): EitherT[F, CommoditySymbol, Journal] = {
+    initialiseAndParseJournal(r)(journalp, mpath.getOrElse("(string)"), content)
   }
 }

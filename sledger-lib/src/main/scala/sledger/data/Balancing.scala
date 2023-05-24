@@ -14,7 +14,7 @@ import sledger.utils.Parse.sourcePosPretty
 object Balancing {
   case class BalancingOptions(commodityStyles: Option[Map[CommoditySymbol, AmountStyle]])
 
-  val defBalancingOptions: BalancingOptions = BalancingOptions(commodityStyles = None)//todo remove
+  val defBalancingOptions: BalancingOptions = BalancingOptions(commodityStyles = None) //todo remove
 
   def journalBalanceTransactions(balancingOptions: BalancingOptions, journal: Journal): Either[String, Journal] = {
     val ts = journal.numberTransactions.transactions
@@ -88,8 +88,8 @@ object Balancing {
     val rsumcost = Foldable[List].foldMap(rps)(postingBalancingAmount)
     val rsumdisplay = canonicalise(rsumcost)
     val rsumok = mixedAmountLooksZero(rsumdisplay)
-    val errs = if (rsumok) "" else if (!rsignsok) "The real postings all have the same sign. Consider negating some of them."
-    else s"The real postings sum should be 0 but is: ${showMixedAmountOneLineWithoutPrice(false, rsumcost)}"
+    val errs = if (rsumok) "" else if (!rsignsok) "All postings have the same sign. Consider negating some of them."
+    else s"Postings sum should be 0 but is: ${showMixedAmountOneLineWithoutPrice(false, rsumcost)}"
     List(errs).filter(_.nonEmpty)
   }
 

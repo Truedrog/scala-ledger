@@ -14,7 +14,7 @@ object Dates {
   val isDateSepChar: Char => Boolean = {
     case c if c == '-' || c == '/' || c == '.' => true
   }
-  val datesepchar: Parsley[Char] = satisfy(isDateSepChar)
+  val dateSepChar: Parsley[Char] = satisfy(isDateSepChar)
 
   val nulldate: LocalDate = LocalDate.of(0, 1, 1)
   val emptyDateSpan: DateSpan = DateSpan(Some(Exact(nulldate)), Some(Exact(nulldate)))

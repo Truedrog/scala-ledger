@@ -109,11 +109,11 @@ object ReportOptions {
   def reportSpanHelper(bothdates: Boolean, journal: Journal, spec: Spec): (DateSpan, List[DateSpan]) = {
     //todo this is requested span specified by various options args if any
     val requested = if(bothdates) queryDateSpan_(spec.query) else queryDateSpan(spec.options.date2, spec.query)
-    println("requested", requested)
+//    println("requested", requested)
     val journalspan = if (bothdates) journalDateSpanBoth(journal) else journalDateSpan(spec.options.date2, journal)
-    println("journalspan", journalspan)
+//    println("journalspan", journalspan)
     val requested1 = spanDefaultsFrom(requested, spanUnion(journalspan, nulldatespan))
-    println("requested1", requested1)
+//    println("requested1", requested1)
 
     val intervalspans = {
       val adjust = spanStart(requested).isEmpty

@@ -1,8 +1,0 @@
-2022-01-01 opening balances are declared this way
-    assets:checking          1000  ; Account names can be anything. lower case is easy to type.
-    assets:savings           1000  ; assets, liabilities, equity, revenues, expenses are common.
-    assets:cash:wallet        100  ; : indicates subaccounts.
-    equity                          ; One amount can be left blank; $-1900 is inferred here.
-2023-03-27 change
-    assets:checking            1500
-    equity                    -1500
