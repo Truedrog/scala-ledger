@@ -82,7 +82,7 @@ object ReportOptions {
     format = defaultBalanceLineFormat,
     noElide = false,
     empty = false,
-    pretty = false,
+    pretty = true,
     queryString = List.empty,
     balanceCalc = defaultBalanceCalculation,
     balanceAccum = defaultBalanceAccumm,

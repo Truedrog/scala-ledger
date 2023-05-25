@@ -133,13 +133,7 @@ object Amounts {
       override def compare(x: Amount, y: Amount): Int = x.quantity.compare(y.quantity)
     }
   }
-//  sealed trait AmountPrice
-//  case class UnitPrice(a: Amount) extends AmountPrice
-//  case class TotalPrice(a: Amount )extends AmountPrice
-//  object AmountPrice {
-//    implicit val eqAmountPrice: Eq[AmountPrice] = derived.semiauto.eq
-//    implicit val ordAmountPrice: Order[AmountPrice] = derived.semiauto.order
-//  }
+
   case class AmountStyle(side: Side,
                          commodityspaced: Boolean,
                          precision: AmountPrecision,

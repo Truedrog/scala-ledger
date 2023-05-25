@@ -66,9 +66,7 @@ object Journals {
   }
 
   def journalCommodityStyles(journal: Journal): Map[CommoditySymbol, AmountStyle] = {
-    //    val globals = journal.globalCommodityStyles
     val inferred = journal.inferredCommodities
-    //    globals ++ inferred
     inferred
   }
 

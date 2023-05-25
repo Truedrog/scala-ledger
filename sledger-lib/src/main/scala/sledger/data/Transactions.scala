@@ -73,7 +73,7 @@ object Transactions {
       .combine(newline)
   }
   
-  def showTransactionLineFirstPart(t: Transaction) = {
+  def showTransactionLineFirstPart(t: Transaction): String = {
     val date = t.date.toString + t.date2.fold("") {"=" + _.toString }
     val status = t.status match {
       case Pending => " !"

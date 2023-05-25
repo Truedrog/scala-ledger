@@ -26,7 +26,10 @@ object Balancing {
   }
 
   def balanceTransaction(balancingOptions: BalancingOptions, transaction: Transaction): Either[String, Transaction] = {
-    balanceTransactionHelper(balancingOptions, transaction).map(_._1)
+    balanceTransactionHelper(balancingOptions, transaction) match {
+      case Left(err) => Left(err)
+      case Right((transaction, _)) => Right(transaction)
+    }
   }
 
   def balanceTransactionHelper(balancingOptions: BalancingOptions,
@@ -74,7 +77,7 @@ object Balancing {
   def transactionCheckBalanced(balancingOptions: BalancingOptions, t: Transaction): List[String] = {
     val (rps, _) = t.postings.foldRight((List.empty[Posting], List.empty[Posting])) { case (p, (l, r)) => (p +: l, r) }
     val canonicalise = balancingOptions.commodityStyles.fold(identity[MixedAmount] _)(s => canonicaliseMixedAmount(s, _))
-    val postingBalancingAmount = (p: Posting) => p.amount // todo add prices later?
+    val postingBalancingAmount = (p: Posting) => p.amount
     val singsOK = (ps: List[Posting]) => {
       val amounts = ps.map(p => canonicalise(p.amount))
       val nonzeros = amounts.filter(ma => !mixedAmountLooksZero(ma))
