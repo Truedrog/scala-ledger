@@ -290,13 +290,13 @@ object Amounts {
 
       override def parseString(str: String): Option[MixedAmount] = throw new Exception("error, mixed amounts do not support multiplication")
 
-      override def toInt(x: MixedAmount): Int = ???
+      override def toInt(x: MixedAmount): Int = throw new Exception("error, mixed amounts do not support toInt")
 
-      override def toLong(x: MixedAmount): Long = ???
+      override def toLong(x: MixedAmount): Long = throw new Exception("error, mixed amounts do not support toInt")
 
-      override def toFloat(x: MixedAmount): Float = ???
+      override def toFloat(x: MixedAmount): Float = throw new Exception("error, mixed amounts do not support toInt")
 
-      override def toDouble(x: MixedAmount): Double = ???
+      override def toDouble(x: MixedAmount): Double = throw new Exception("error, mixed amounts do not support toDouble")
 
       override def compare(x: MixedAmount, y: MixedAmount): Int = maCompare(x, y).toInt
     }
@@ -450,7 +450,7 @@ object Amounts {
       case Some(DigitGroupStyle(_, Nil)) => WideBuilder(new StringBuilder(strPart), intLen)
       case Some(DigitGroupStyle(c, s :: s1)) =>
         def addSep(nel: NonEmptyList[Int], l1: Int, s1: String): WideBuilder = {
-          val l2 = l1 - nel.head.toInt
+          val l2 = l1 - nel.head
           val gs2 = NonEmptyList.fromList(nel.tail).getOrElse(NonEmptyList.of(nel.head))
           val (rest, part) = s1.splitAt(l2)
 

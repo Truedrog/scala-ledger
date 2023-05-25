@@ -4,6 +4,7 @@ lazy val compilerOptions = Seq(
   "-Ymacro-annotations",
   "-deprecation",
   "-feature",
+  "-language:implicitConversions",
   "-encoding", "UTF-8"
 )
 

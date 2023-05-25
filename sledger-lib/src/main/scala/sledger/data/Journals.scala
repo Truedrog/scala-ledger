@@ -11,12 +11,12 @@ import sledger.data.Postings._
 import sledger.data.Transactions.{Transaction, transactionMapPostings, txnTieKnot}
 import sledger.utils.RoseTree._
 
-import java.time.{LocalDate, LocalDateTime, Year}
+import java.time.{LocalDate, LocalDateTime}
 
 object Journals {
 
   case class Journal(
-                      parseDefaultYear: Option[Year],
+                      parseDefaultYear: Option[Int],
                       parseParentAccounts: List[AccountName],
                       parsedDefaultCommodity: Option[(CommoditySymbol, AmountStyle)],
                       files: List[(String, String)],
@@ -25,13 +25,10 @@ object Journals {
                       inferredCommodities: Map[CommoditySymbol, AmountStyle], // commodities and formats inferred from journal amounts
                       lastReadTime: LocalDateTime,
                       accountTypes: Map[AccountName, AccountType],
-                      //                      globalCommodityStyles: Map[CommoditySymbol, AmountStyle]
                     )
 
   object JournalOps {
     implicit class JournalExtensions(j: Journal) {
-      //      def withGlobalCommodityStyles(styles: Map[CommoditySymbol, AmountStyle]): Journal =
-      //        j.copy(globalCommodityStyles = styles)
 
       def withLastReadTime(t: LocalDateTime): Journal =
         j.copy(lastReadTime = t)
@@ -49,9 +46,7 @@ object Journals {
 
       def addTransaction(transaction: Transaction): Journal = j.copy(transactions = transaction :: j.transactions)
 
-      def numberTransactions: Journal = j.copy(transactions = j.transactions
-        .zipWithIndex
-        .map { case (t, i) => t.copy(index = i + 1) })
+      def numberTransactions: Journal = j.copy(transactions = j.transactions.zipWithIndex.map { case (t, i) => t.copy(index = i + 1) })
 
       def balanceTransactions: Either[String, Journal] = journalBalanceTransactions(defBalancingOptions, j)
     }

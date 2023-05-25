@@ -11,7 +11,6 @@ import parsley.implicits.zipped._
 import parsley.position.pos
 import parsley.registers.Reg
 import sledger.data.Amounts._
-import sledger.data.InputOptions.{InputOpts, defInputOpts}
 import sledger.data.Journals.JournalOps._
 import sledger.data.Journals._
 import sledger.data.Postings._
@@ -105,8 +104,9 @@ object JournalReader {
                                              file: String = "",
                                              content: String = ""): EitherT[F, String, Journal] = {
     val initJournal = nulljournal
-    val p = r.put(initJournal) *> parser
     for {
+      y <- EitherT.liftF(Sync[F].delay(LocalDateTime.now().getYear))
+      p = r.put(initJournal.copy(parseDefaultYear = Some(y))) *> parser
       parsedJournal <- EitherT {
         Sync[F].pure(p.parse(content).toEither)
       }
