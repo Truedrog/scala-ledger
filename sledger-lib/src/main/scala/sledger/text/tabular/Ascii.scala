@@ -81,21 +81,11 @@ object Ascii {
   case object HM extends HPos
   case object HR extends HPos
 
-  def renderTable[R, C, A](
-                      tableOps: TableOpts,
-                      fr: R => Cell, // Rendering function for row headers
-                      fc: C => Cell, // Rendering function for column headers
-                      f: A => Cell, //  Function determining the string and width of a cell
-                      table: Table[R, C, A]
-                    ): String = {
-    renderTableB(tableOps, fr, fc, f, table).result()
-  }
-
   def renderTableB[R, C, A](
                        tableOps: TableOpts,
-                       fr: R => Cell,
-                       fc: C => Cell,
-                       f: A => Cell,
+                       fr: R => Cell,// Rendering function for row headers
+                       fc: C => Cell,// Rendering function for column headers
+                       f: A => Cell,//  Function determining the string and width of a cell
                        table: Table[R, C, A]
                      ):StringBuilder = {
     val fRListA: ((R, List[A])) => (Cell, List[Cell]) = { case (r, la) => fr(r) -> la.map(f) }

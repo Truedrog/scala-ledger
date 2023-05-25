@@ -57,7 +57,7 @@ object Balance {
 
   def renderBalanceReportItem(options: ReportOptions, bitem: (AccountName, Int, MixedAmount)): (StringBuilder, List[Int]) = {
 
-    val render: Boolean => Boolean => List[StringFormatComponent] =>List[Cell] = topAligned => oneline => {
+    val render: Boolean => Boolean => List[StringFormatComponent] => List[Cell] = topAligned => oneline => {
       Functor[List].map(_){renderComponent(topAligned,oneline, options, bitem, _)}
     }
     val renderRow: List[Cell] => (StringBuilder, List[Int]) = is => {

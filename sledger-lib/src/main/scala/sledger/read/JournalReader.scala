@@ -36,17 +36,17 @@ object JournalReader {
       skipNonNewlineSpaces,
       skipNonNewlineSpaces,
       followingCommentp
-    ).zipped { (b, _, amount, _, _, comment) =>
+    ).zipped { case ((status, account), _, amount, _, _, comment) =>
       posting.copy(
-        status = b._1,
-        account = b._2,
+        status = status,
+        account = account,
         amount = amount.fold(missingMixedAmt)(a => mixedAmount(a)),
         comment = comment)
     }
   }
 
   val postingsp: Parsley[List[Posting]] = {
-    many(postingp.label("postings")) // todo add year postings 
+    many(postingp.label("postings"))
   }
 
   val transactionp: Parsley[Transaction] = {
@@ -114,7 +114,7 @@ object JournalReader {
     } yield j
   }
 
-  def reader[F[_] : Sync](mpath: Option[String], content: String): EitherT[F, CommoditySymbol, Journal] = {
+  def reader[F[_] : Sync](mpath: Option[String], content: String): EitherT[F, String, Journal] = {
     initialiseAndParseJournal(r)(journalp, mpath.getOrElse("(string)"), content)
   }
 }

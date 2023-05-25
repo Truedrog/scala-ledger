@@ -310,9 +310,8 @@ object Common {
     }
   }
 
-  val interpretNumber:
-    ((Int, Int), Either[AmbiguousNumber, RawNumber])
-      => Parsley[(BigDecimal, Precision, Option[Char], Option[DigitGroupStyle])] =
+  val interpretNumber: ((Int, Int), Either[AmbiguousNumber, RawNumber])
+    => Parsley[(BigDecimal, Precision, Option[Char], Option[DigitGroupStyle])] =
     (_: (Int, Int), ambiguousRawNum: Either[AmbiguousNumber, RawNumber]) => {
       val rawNum = ambiguousRawNum.fold(disambiguateNumber, { a => identity(a) })
       fromRawNumber(rawNum) match {
