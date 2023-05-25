@@ -36,7 +36,7 @@ Example of a journal file:
 - A reusable library with core functionality ```sledger-lib```
 - A Command Line Interface ```sledger-cli```
 
-### Used GraalVM to build Native Image for convinience usage
+### Used GraalVM to build Native Image for convenience usage
 
 ### Some interesting parts
 ![parser.png](parser.png)
