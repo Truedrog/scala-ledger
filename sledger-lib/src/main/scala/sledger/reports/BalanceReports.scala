@@ -28,7 +28,11 @@ object BalanceReports {
     val report = multiBalanceReport(spec, journal)
     val rows = for {
       row <- report.rows
-    } yield (periodicReportRowFullName(row), periodicReportRowDisplayName(row), periodicReportRowDepth(row), row.total)
+    } yield (
+      periodicReportRowFullName(row), 
+      periodicReportRowDisplayName(row), 
+      periodicReportRowDepth(row)-1,// 0-based account depths
+      row.total)
     val total = report.totals.total
     (rows, total)
   }

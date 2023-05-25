@@ -15,6 +15,7 @@ import sledger.text.WideString.{WideBuilder, wbFromString}
 import sledger.text.tabular.Ascii.{Align, _}
 import sledger.text.tabular.Tabular.{Group, Header, NoLine}
 import sledger.utils.Text.{formatText, unlinesB}
+import sledger.utils.headDef
 
 object Balance {
 
@@ -133,7 +134,7 @@ object Balance {
       .foldLeft(List.empty[Int]) {
         case (acc, widths) => (acc ++ widths).maxOption.toList
       }
-    val n = sizes.headOption.getOrElse[Int](0)
+    val n = headDef(0, sizes)
     val s = List.fill(n)("-").mkString 
     val overline = Cell(TopLeft, List(wbFromString(s)))
     val tableOpts = TableOpts(tableBorders = false)

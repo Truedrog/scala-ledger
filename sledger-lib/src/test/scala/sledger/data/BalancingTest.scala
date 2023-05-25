@@ -1,6 +1,6 @@
 package sledger.data
 
-import munit.CatsEffectSuite
+import munit.FunSuite
 import sledger._
 import sledger.data.Amounts._
 import sledger.data.Balancing._
@@ -10,7 +10,7 @@ import sledger.data.Transactions._
 
 import java.time.LocalDate
 
-class BalancingTest extends CatsEffectSuite {
+class BalancingTest extends FunSuite {
   def assertRight[A](either: Either[String, A]) = {
     either match {
       case Left(value) => fail(value)

@@ -550,7 +550,7 @@ object Amounts {
     if (maDisplayOpts.displayOneLine) showMixedAmountOneLineB(maDisplayOpts, ma) else {
       val sep = WideBuilder(new StringBuilder("\n"), 0)
       val ls = showMixedAmountLinesB(maDisplayOpts, ma)
-      val width = ls.map(_.width).headOption.getOrElse(0)
+      val width = headDef(0, ls.map(_.width))
       WideBuilder(ls.intersperse(sep).combineAll.builder, width)
     }
   }

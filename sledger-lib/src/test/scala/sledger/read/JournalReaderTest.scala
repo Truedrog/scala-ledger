@@ -1,12 +1,12 @@
 package sledger.read
 
-import munit.CatsEffectSuite
+import munit.FunSuite
 import sledger.data.Amounts.{mixedAmount, num, usd}
 import sledger.data.Postings.posting
 import sledger.read.JournalReader.postingp
 import sledger.read.JournalReader.transactionp
 
-class JournalReaderTest extends CatsEffectSuite {
+class JournalReaderTest extends FunSuite {
 
   test("basic") {
     val p = postingp

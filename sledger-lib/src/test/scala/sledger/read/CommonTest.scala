@@ -1,8 +1,8 @@
 package sledger.read
-import munit.CatsEffectSuite
+import munit.FunSuite
 import sledger.data.Amounts._
 import sledger.read.Common.amountp
-class CommonTest extends CatsEffectSuite {
+class CommonTest extends FunSuite {
 
   test("numberp") {
     val p = amountp

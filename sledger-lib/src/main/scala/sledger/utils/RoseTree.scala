@@ -8,9 +8,7 @@ import scala.annotation.tailrec
 object RoseTree {
   sealed trait Tree[+A]
 
-  case class Node[A](rootLabel: A, subForest: List[Tree[A]]) extends Tree[A] {
-
-  }
+  case class Node[A](rootLabel: A, subForest: List[Tree[A]]) extends Tree[A] 
 
   def flatten[A](tree: Tree[A]): List[A] = {
     def squish(node: Tree[A], acc: List[A]): List[A] = node match {
